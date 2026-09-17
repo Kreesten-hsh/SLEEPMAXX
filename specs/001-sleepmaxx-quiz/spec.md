@@ -161,7 +161,7 @@ Inspect the Result view at mobile dimensions (375px–430px) and verify that the
 * **QuizOption**: Represents a selectable choice presented to the user.
   * `id`: Unique option identifier.
   * `label`: User-facing primary text (e.g., "7 to 8 hours").
-  * `sublabel`: Optional explanatory context (e.g., "Optimal recovery").
+  * `sublabel`: Optional explanatory context (e.g., "Highest score bracket").
   * `normalizedValue`: The underlying scalar value matching `QuizAnswers` types.
 * **QuizResult**: The output object produced by the scoring engine conforming to `SleepmaxxResult`.
 

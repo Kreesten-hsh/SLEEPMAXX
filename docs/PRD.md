@@ -81,7 +81,7 @@ Sleepmaxx adapts this viral calculator loop to sleep hygiene and daily habits:
   * College and university students.
   * Gen Z self-improvement and productivity enthusiasts.
   * Fitness, gym, and bodybuilding communities prioritizing physical recovery.
-  * "Glow-up" and looksmaxxing subcultures seeking aesthetic and hormonal recovery benefits.
+  * "Glow-up" and looksmaxxing subcultures seeking self-improvement and recovery routine benefits.
   * Morning routine and discipline creators.
   * Active TikTok and Instagram consumers.
 
@@ -225,66 +225,66 @@ The scoring engine is completely deterministic, executed locally on the client w
 ### 12.1 Sleep Duration (35 Points)
 Evaluates declared average continuous nocturnal sleep:
 
-| Declared Sleep Duration | Points Awarded | Rational / Bracket |
+| Declared Sleep Duration | Points Awarded | Scoring Bracket Rationale |
 | :--- | :---: | :--- |
-| `< 5.0 hours` | **0** | Severe sleep deprivation |
-| `5.0 – 5.99 hours` | **10** | Insufficient |
-| `6.0 – 6.99 hours` | **22** | Sub-optimal |
-| `7.0 – 8.99 hours` | **35** | Optimal physiological range |
-| `9.0 – 9.99 hours` | **33** | Extended duration |
-| `10.0+ hours` | **30** | Oversleeping / recovery debt |
+| `< 5.0 hours` | **0** | Severe routine deficit |
+| `5.0 – 5.99 hours` | **10** | Low routine score bracket |
+| `6.0 – 6.99 hours` | **22** | Moderate routine score bracket |
+| `7.0 – 8.99 hours` | **35** | Highest score bracket under Sleepmaxx rules |
+| `9.0 – 9.99 hours` | **33** | Extended routine duration bracket |
+| `10.0+ hours` | **30** | Excess duration / lower routine score bracket |
 
 *Input Sanitization Rule*: Lower bound clamped to 0. Non-finite (`NaN`, `Infinity`) or negative values resolve to 0 points (worst case).
 
 ### 12.2 Sleep Consistency / Social Jetlag (25 Points)
 Evaluates absolute difference between weekday and weekend bedtimes:
 
-| Bedtime Shift (Hours) | Points Awarded | Impact Level |
+| Bedtime Shift (Hours) | Points Awarded | Routine Alignment Bracket |
 | :--- | :---: | :--- |
-| `0.0 hours` | **25** | Perfect circadian lock |
-| `> 0.0 and < 1.0 hour` | **22** | Minimal circadian drift |
-| `1.0 – 1.99 hours` | **17** | Moderate drift |
-| `2.0 – 2.99 hours` | **10** | High social jetlag |
-| `3.0+ hours` | **0** | Severe circadian disruption |
+| `0.0 hours` | **25** | Perfect routine consistency (max points) |
+| `> 0.0 and < 1.0 hour` | **22** | Minimal schedule shift |
+| `1.0 – 1.99 hours` | **17** | Moderate schedule shift |
+| `2.0 – 2.99 hours` | **10** | High schedule shift |
+| `3.0+ hours` | **0** | Severe schedule inconsistency (lowest bracket) |
 
 *Input Sanitization Rule*: Higher shift is worse. Non-finite values (`NaN`, `Infinity`) map to worst case (0 points).
 
 ### 12.3 Caffeine Timing (20 Points)
 Evaluates hours between last caffeine consumption and planned bedtime:
 
-| Cutoff Timing Prior to Bedtime | Points Awarded | Biological Impact |
+| Cutoff Timing Prior to Bedtime | Points Awarded | Scoring Bracket Rationale |
 | :--- | :---: | :--- |
-| `No caffeine consumed` | **20** | Zero adenosine receptor interference |
-| `8.0+ hours before bed` | **20** | Optimal clearance window |
-| `6.0 – 7.99 hours` | **18** | Minor residual clearance |
-| `4.0 – 5.99 hours` | **14** | Active clearance window |
-| `2.0 – 3.99 hours` | **7** | High circulating caffeine |
-| `< 2.0 hours before bed` | **0** | Severe sleep latency/architecture impairment |
+| `No caffeine consumed` | **20** | No declared caffeine intake (max points) |
+| `8.0+ hours before bed` | **20** | Long pre-bed buffer (max points) |
+| `6.0 – 7.99 hours` | **18** | Moderate-long pre-bed buffer |
+| `4.0 – 5.99 hours` | **14** | Moderate pre-bed buffer |
+| `2.0 – 3.99 hours` | **7** | Short pre-bed buffer |
+| `< 2.0 hours before bed` | **0** | Very short pre-bed buffer (lowest bracket) |
 
 *Input Sanitization Rule*: Non-finite values or negative hours map to 0 points.
 
 ### 12.4 Screen Habit in Bed (10 Points)
 Evaluates active smartphone, tablet, or monitor usage while in bed before sleeping:
 
-| Screen Minutes in Bed | Points Awarded | Impact Level |
+| Screen Minutes in Bed | Points Awarded | Screen Habit Bracket |
 | :--- | :---: | :--- |
-| `0 minutes` | **10** | Optimal melatonin release |
-| `> 0 and < 15 minutes` | **9** | Minimal blue light exposure |
-| `15 – 29 minutes` | **7** | Moderate alertness stimulation |
-| `30 – 59 minutes` | **4** | Delayed sleep phase |
-| `60+ minutes` | **0** | Severe dopaminergic and light disruption |
+| `0 minutes` | **10** | Zero in-bed screen habit (max points) |
+| `> 0 and < 15 minutes` | **9** | Minimal in-bed screen time |
+| `15 – 29 minutes` | **7** | Moderate in-bed screen time |
+| `30 – 59 minutes` | **4** | High in-bed screen time |
+| `60+ minutes` | **0** | Extended in-bed screen time (lowest bracket) |
 
 *Input Sanitization Rule*: Higher minutes is worse. `NaN` or `Infinity` maps to 0 points.
 
 ### 12.5 Morning Light Exposure (10 Points)
 Evaluates frequency of direct outdoor sunlight exposure within 60 minutes of waking:
 
-| Frequency Selection | Points Awarded | Impact Level |
+| Frequency Selection | Points Awarded | Routine Habit Bracket |
 | :--- | :---: | :--- |
-| `almost_always` | **10** | Immediate cortisol peak and circadian alignment |
-| `often` | **7** | Regular entrainment |
-| `rarely` | **3** | Infrequent light cue |
-| `never` | **0** | Circadian drift / delayed phase |
+| `almost_always` | **10** | Consistent morning light routine (max points) |
+| `often` | **7** | Frequent morning light habit |
+| `rarely` | **3** | Infrequent morning light habit |
+| `never` | **0** | No morning light habit (lowest bracket) |
 
 ---
 
@@ -299,11 +299,11 @@ Score:  0        40          60            75           90      100
 
 | Score Range | Archetype Code | Display Label | Description & Emotional Framing |
 | :---: | :---: | :---: | :--- |
-| **0 – 39** | `COOKED` | **COOKED** | Severe routine dysregulation. High urgency, meme-worthy, immediate turnaround needed. |
-| **40 – 59** | `ZOMBIE` | **ZOMBIE** | Operating on chronic sleep debt and inconsistent cues. Low daytime energy. |
-| **60 – 74** | `RECOVERING` | **RECOVERING** | Decent baseline with 1–2 major leaks dragging down recovery. |
-| **75 – 89** | `SLEEPMAXXED` | **SLEEPMAXXED** | Disciplined routine. Above-average habits, minor adjustments required for perfection. |
-| **90 – 100** | `ELITE` | **ELITE** | Mastered sleep hygiene. Circadian rhythm synchronized, top 1% routine discipline. |
+| **0 – 39** | `COOKED` | **COOKED** | Lowest routine consistency tier under our model. High urgency, meme-worthy, turnaround needed. |
+| **40 – 59** | `ZOMBIE` | **ZOMBIE** | Sub-optimal routine habits with substantial point deductions across categories. |
+| **60 – 74** | `RECOVERING` | **RECOVERING** | Decent routine baseline with 1–2 pronounced habit leaks dragging down score. |
+| **75 – 89** | `SLEEPMAXXED` | **SLEEPMAXXED** | Disciplined routine habits. Strong alignment with Sleepmaxx rules. |
+| **90 – 100** | `ELITE` | **ELITE** | Highest routine score tier. Near-perfect adherence across all five Sleepmaxx dimensions. |
 
 ---
 
@@ -318,7 +318,7 @@ The category with the maximum lost points is designated as the primary `weakness
 
 ### 14.2 Strict Tie-Breaking Order
 When two or more categories have identical lost point totals, ties are broken strictly in the following sequence:
-1. `duration` (highest biological impact)
+1. `duration` (highest scoring weight: 35 points)
 2. `consistency`
 3. `caffeine`
 4. `screen`

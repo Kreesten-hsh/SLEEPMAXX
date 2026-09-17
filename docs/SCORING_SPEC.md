@@ -77,11 +77,11 @@ Total Score (100 pts) = Duration (35) + Consistency (25) + Caffeine (20) + Scree
 
 | Dimension | Key | Max Points | Weight (%) | Impact Area |
 | :--- | :--- | :---: | :---: | :--- |
-| **Sleep Duration** | `duration` | **35** | 35% | Total continuous sleep quantity |
-| **Sleep Consistency** | `consistency` | **25** | 25% | Circadian phase stability / social jetlag |
-| **Caffeine Timing** | `caffeine` | **20** | 20% | Adenosine receptor clearance before sleep |
-| **Screen Habit** | `screen` | **10** | 10% | Pre-sleep blue light & dopaminergic stimulation |
-| **Morning Light** | `morningLight` | **10** | 10% | Circadian entrainment via early sunlight |
+| **Sleep Duration** | `duration` | **35** | 35% | Declared continuous sleep duration |
+| **Sleep Consistency** | `consistency` | **25** | 25% | Bedtime consistency / weekend schedule shift |
+| **Caffeine Timing** | `caffeine` | **20** | 20% | Pre-bed caffeine cutoff buffer |
+| **Screen Habit** | `screen` | **10** | 10% | In-bed screen time before sleep |
+| **Morning Light** | `morningLight` | **10** | 10% | Morning outdoor light habit |
 
 ---
 
@@ -92,14 +92,14 @@ Evaluates `sleepDurationHours`. Higher value is better up to 8.99 hours; oversle
 
 $$\text{Sanitized Value } h = \text{safeNonNegative}(hours)$$
 
-| Condition | Earned Points | Rational Bracket |
+| Condition | Earned Points | Scoring Bracket Rationale |
 | :--- | :---: | :--- |
-| $h < 5.0$ | **0** | Severe sleep deficit |
-| $5.0 \le h < 6.0$ | **10** | Insufficient |
-| $6.0 \le h < 7.0$ | **22** | Sub-optimal |
-| $7.0 \le h < 9.0$ | **35** | Optimal physiological recovery |
-| $9.0 \le h < 10.0$ | **33** | Extended recovery |
-| $h \ge 10.0$ | **30** | Excess sleep / recovery debt |
+| $h < 5.0$ | **0** | Severe routine deficit |
+| $5.0 \le h < 6.0$ | **10** | Low routine score bracket |
+| $6.0 \le h < 7.0$ | **22** | Moderate routine score bracket |
+| $7.0 \le h < 9.0$ | **35** | Highest score bracket under Sleepmaxx rules |
+| $9.0 \le h < 10.0$ | **33** | Extended routine duration bracket |
+| $h \ge 10.0$ | **30** | Excess duration / lower routine score bracket |
 
 *Sanitization*: Non-finite numbers (`NaN`, `Infinity`, `-Infinity`) and negative values evaluate to `0`, awarding **0 points**.
 
@@ -110,13 +110,13 @@ Evaluates absolute weekend bedtime shift (`Math.abs(shiftHours)`). Higher shift 
 
 $$\text{Sanitized Value } shift = \text{safeHighIsWorse}(|\text{shiftHours}|)$$
 
-| Condition | Earned Points | Drift Severity |
+| Condition | Earned Points | Routine Alignment Bracket |
 | :--- | :---: | :--- |
-| $shift = 0.0$ | **25** | Perfect circadian lock |
-| $0.0 < shift < 1.0$ | **22** | Negligible circadian drift |
-| $1.0 \le shift < 2.0$ | **17** | Moderate social jetlag |
-| $2.0 \le shift < 3.0$ | **10** | High social jetlag |
-| $shift \ge 3.0$ | **0** | Severe circadian dysregulation |
+| $shift = 0.0$ | **25** | Perfect routine consistency (max points) |
+| $0.0 < shift < 1.0$ | **22** | Minimal schedule shift |
+| $1.0 \le shift < 2.0$ | **17** | Moderate schedule shift |
+| $2.0 \le shift < 3.0$ | **10** | High schedule shift |
+| $shift \ge 3.0$ | **0** | Severe schedule inconsistency (lowest bracket) |
 
 *Sanitization*: Negative inputs are converted via `Math.abs()`. Non-finite values (`NaN`, `Infinity`) map to $\infty$, awarding **0 points**.
 
@@ -127,14 +127,14 @@ Evaluates `hoursSinceLastCaffeineBeforeBed`. `null` indicates zero caffeine cons
 
 $$\text{Sanitized Value } h = \begin{cases} 20 \text{ pts} & \text{if input is } \text{null} \\ \text{safeNonNegative}(hours) & \text{otherwise} \end{cases}$$
 
-| Condition | Earned Points | Clearance Phase |
+| Condition | Earned Points | Scoring Bracket Rationale |
 | :--- | :---: | :--- |
-| `input === null` | **20** | No caffeine consumed |
-| $h \ge 8.0$ | **20** | Full clearance window |
-| $6.0 \le h < 8.0$ | **18** | Minor residual level |
-| $4.0 \le h < 6.0$ | **14** | Active clearance window |
-| $2.0 \le h < 4.0$ | **7** | High circulating caffeine |
-| $h < 2.0$ | **0** | Acute adenosine receptor blockage |
+| `input === null` | **20** | No declared caffeine intake (max points) |
+| $h \ge 8.0$ | **20** | Long pre-bed buffer (max points) |
+| $6.0 \le h < 8.0$ | **18** | Moderate-long pre-bed buffer |
+| $4.0 \le h < 6.0$ | **14** | Moderate pre-bed buffer |
+| $2.0 \le h < 4.0$ | **7** | Short pre-bed buffer |
+| $h < 2.0$ | **0** | Very short pre-bed buffer (lowest bracket) |
 
 *Sanitization*: Non-finite numbers and negative values map to `0`, awarding **0 points**.
 
@@ -145,13 +145,13 @@ Evaluates `screenMinutesInBed`. Higher value is worse.
 
 $$\text{Sanitized Value } m = \text{safeHighIsWorse}(minutes)$$
 
-| Condition | Earned Points | Blue Light Impact |
+| Condition | Earned Points | Screen Habit Bracket |
 | :--- | :---: | :--- |
-| $m = 0$ | **10** | Zero in-bed screen stimulation |
-| $0 < m < 15$ | **9** | Minimal pre-sleep exposure |
-| $15 \le m < 30$ | **7** | Moderate alertness stimulation |
-| $30 \le m < 60$ | **4** | Delayed melatonin onset |
-| $m \ge 60$ | **0** | Severe circadian & dopamine disruption |
+| $m = 0$ | **10** | Zero in-bed screen habit (max points) |
+| $0 < m < 15$ | **9** | Minimal in-bed screen time |
+| $15 \le m < 30$ | **7** | Moderate in-bed screen time |
+| $30 \le m < 60$ | **4** | High in-bed screen time |
+| $m \ge 60$ | **0** | Extended in-bed screen time (lowest bracket) |
 
 *Sanitization*: Non-finite values (`NaN`, `Infinity`) map to $\infty$, awarding **0 points**. Negative values clamp to `0` (awarding **10 points**).
 
@@ -160,12 +160,12 @@ $$\text{Sanitized Value } m = \text{safeHighIsWorse}(minutes)$$
 ### 6.5 Morning Sunlight Exposure (Category Max: 10 Points)
 Evaluates discrete selection `morningLightFrequency`.
 
-| Option | Earned Points | Entrainment Frequency |
+| Option | Earned Points | Routine Habit Bracket |
 | :--- | :---: | :--- |
-| `"almost_always"` | **10** | Daily natural circadian anchoring |
-| `"often"` | **7** | Frequent sunlight cue |
-| `"rarely"` | **3** | Infrequent light exposure |
-| `"never"` | **0** | No early photic reset |
+| `"almost_always"` | **10** | Consistent morning light routine (max points) |
+| `"often"` | **7** | Frequent morning light habit |
+| `"rarely"` | **3** | Infrequent morning light habit |
+| `"never"` | **0** | No morning light habit (lowest bracket) |
 
 ---
 
@@ -214,11 +214,11 @@ The `totalScore` determines the user's archetype according to non-overlapping th
 
 | Score Range | Archetype ID (`id`) | Display Label (`label`) | Archetype Characterization |
 | :---: | :--- | :--- | :--- |
-| **0 – 39** | `"cooked"` | `COOKED` | Critically dysregulated routine. Severe recovery deficit. |
-| **40 – 59** | `"zombie"` | `ZOMBIE` | Chronic routine debt. Sub-baseline daytime focus. |
-| **60 – 74** | `"recovering"` | `RECOVERING` | Moderate stability with 1–2 pronounced routine leaks. |
-| **75 – 89** | `"sleepmaxxed"` | `SLEEPMAXXED` | Disciplined routine. Upper-quartile hygiene habits. |
-| **90 – 100** | `"elite"` | `ELITE` | Mastered circadian hygiene. Top 1% routine alignment. |
+| **0 – 39** | `"cooked"` | `COOKED` | Lowest routine consistency tier under our model. High urgency, turnaround needed. |
+| **40 – 59** | `"zombie"` | `ZOMBIE` | Sub-optimal routine habits with substantial point deductions across categories. |
+| **60 – 74** | `"recovering"` | `RECOVERING` | Decent routine baseline with 1–2 pronounced habit leaks dragging down score. |
+| **75 – 89** | `"sleepmaxxed"` | `SLEEPMAXXED` | Disciplined routine habits. Strong alignment with Sleepmaxx rules. |
+| **90 – 100** | `"elite"` | `ELITE` | Highest routine score tier. Near-perfect adherence across all five Sleepmaxx dimensions. |
 
 ---
 
