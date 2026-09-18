@@ -477,3 +477,383 @@ describe('User Story 2: Step-by-Step Navigation & Correction Integration', () =>
     });
   });
 });
+
+describe('User Story 3: In-Session Resilience & Refresh Handling Integration', () => {
+  describe('1. Mid-quiz refresh restoration', () => {
+    it('saves state after answering Q1+Q2, simulates reload, and restores at Q3 with answers intact', () => {
+      // Simulate a MockStorage that persists across "reloads"
+      const store = new Map<string, string>();
+      const persistentStorage: Storage = {
+        length: 0,
+        clear: () => store.clear(),
+        key: () => null,
+        getItem: (k: string) => store.get(k) ?? null,
+        setItem: (k: string, v: string) => { store.set(k, v); },
+        removeItem: (k: string) => { store.delete(k); },
+      };
+
+      const storageAdapter = createQuizStorage(persistentStorage);
+
+      // Session 1: User answers Q1 and Q2
+      let state: QuizState = INITIAL_QUIZ_STATE;
+      state = quizReducer(state, { type: 'START_QUIZ' });
+      state = quizReducer(state, {
+        type: 'ANSWER_QUESTION',
+        payload: { key: 'sleepDurationHours', value: 6.5 },
+      });
+      state = quizReducer(state, {
+        type: 'ANSWER_QUESTION',
+        payload: { key: 'weekendShiftHours', value: 1.5 },
+      });
+
+      // State is at Q3 (index 2). Save to storage (simulates useEffect save)
+      storageAdapter.saveSession(state);
+
+      // Session 2: Simulate browser refresh — load from storage
+      const restoredState = storageAdapter.loadSession();
+
+      expect(restoredState).not.toBeNull();
+      expect(restoredState!.step).toBe('question');
+      expect(restoredState!.questionIndex).toBe(2);
+      expect(restoredState!.answers).toEqual({
+        sleepDurationHours: 6.5,
+        weekendShiftHours: 1.5,
+      });
+      expect(restoredState!.result).toBeNull();
+    });
+  });
+
+  describe('2. Multi-answer restoration preserves all recorded answers', () => {
+    it('saves Q1+Q2+Q3 answers, reloads, and all three are present', () => {
+      const store = new Map<string, string>();
+      const persistentStorage: Storage = {
+        length: 0,
+        clear: () => store.clear(),
+        key: () => null,
+        getItem: (k: string) => store.get(k) ?? null,
+        setItem: (k: string, v: string) => { store.set(k, v); },
+        removeItem: (k: string) => { store.delete(k); },
+      };
+
+      const storageAdapter = createQuizStorage(persistentStorage);
+
+      // Progress through Q1, Q2, Q3
+      let state: QuizState = INITIAL_QUIZ_STATE;
+      state = quizReducer(state, { type: 'START_QUIZ' });
+      state = quizReducer(state, {
+        type: 'ANSWER_QUESTION',
+        payload: { key: 'sleepDurationHours', value: 8.0 },
+      });
+      state = quizReducer(state, {
+        type: 'ANSWER_QUESTION',
+        payload: { key: 'weekendShiftHours', value: 0.0 },
+      });
+      state = quizReducer(state, {
+        type: 'ANSWER_QUESTION',
+        payload: { key: 'hoursSinceLastCaffeineBeforeBed', value: null },
+      });
+
+      storageAdapter.saveSession(state);
+
+      // Reload
+      const restored = storageAdapter.loadSession();
+      expect(restored).not.toBeNull();
+      expect(restored!.answers).toEqual({
+        sleepDurationHours: 8.0,
+        weekendShiftHours: 0.0,
+        hoursSinceLastCaffeineBeforeBed: null,
+      });
+      expect(restored!.questionIndex).toBe(3);
+    });
+  });
+
+  describe('3. Retake purges all answers, result, and resets step', () => {
+    it('completes quiz, dispatches RETAKE_QUIZ, and state is fully reset', () => {
+      // Complete a quiz
+      let state: QuizState = INITIAL_QUIZ_STATE;
+      state = quizReducer(state, { type: 'START_QUIZ' });
+      state = quizReducer(state, {
+        type: 'ANSWER_QUESTION',
+        payload: { key: 'sleepDurationHours', value: 8.0 },
+      });
+      state = quizReducer(state, {
+        type: 'ANSWER_QUESTION',
+        payload: { key: 'weekendShiftHours', value: 0.0 },
+      });
+      state = quizReducer(state, {
+        type: 'ANSWER_QUESTION',
+        payload: { key: 'hoursSinceLastCaffeineBeforeBed', value: null },
+      });
+      state = quizReducer(state, {
+        type: 'ANSWER_QUESTION',
+        payload: { key: 'screenMinutesInBed', value: 0 },
+      });
+      state = quizReducer(state, {
+        type: 'ANSWER_QUESTION',
+        payload: { key: 'morningLightFrequency', value: 'almost_always' },
+      });
+
+      expect(state.step).toBe('result');
+      expect(state.result).not.toBeNull();
+      expect(state.result?.totalScore).toBe(100);
+
+      // Retake
+      state = quizReducer(state, { type: 'RETAKE_QUIZ' });
+
+      expect(state.step).toBe('landing');
+      expect(state.questionIndex).toBe(0);
+      expect(state.answers).toEqual({});
+      expect(state.result).toBeNull();
+    });
+  });
+
+  describe('4. Retake purges localStorage via clearSession', () => {
+    it('calls clearSession which removes the storage key, making loadSession return null', () => {
+      const store = new Map<string, string>();
+      const persistentStorage: Storage = {
+        length: 0,
+        clear: () => store.clear(),
+        key: () => null,
+        getItem: (k: string) => store.get(k) ?? null,
+        setItem: (k: string, v: string) => { store.set(k, v); },
+        removeItem: (k: string) => { store.delete(k); },
+      };
+
+      const storageAdapter = createQuizStorage(persistentStorage);
+
+      // Save a completed session
+      const completedState: QuizState = {
+        step: 'result',
+        questionIndex: 4,
+        answers: {
+          sleepDurationHours: 8.0,
+          weekendShiftHours: 0.0,
+          hoursSinceLastCaffeineBeforeBed: null,
+          screenMinutesInBed: 0,
+          morningLightFrequency: 'almost_always',
+        },
+        result: calculateSleepmaxxScore({
+          sleepDurationHours: 8.0,
+          weekendShiftHours: 0.0,
+          hoursSinceLastCaffeineBeforeBed: null,
+          screenMinutesInBed: 0,
+          morningLightFrequency: 'almost_always',
+        }),
+      };
+
+      storageAdapter.saveSession(completedState);
+      expect(storageAdapter.loadSession()).not.toBeNull();
+
+      // Retake: clear storage (mirrors retakeQuiz callback behavior)
+      storageAdapter.clearSession();
+
+      // Storage is now empty
+      expect(storageAdapter.loadSession()).toBeNull();
+      expect(persistentStorage.getItem('sleepmaxx_quiz_session_v1')).toBeNull();
+    });
+  });
+
+  describe('5. New session after retake produces independent results', () => {
+    it('old answers do not contaminate new session after retake', () => {
+      const store = new Map<string, string>();
+      const persistentStorage: Storage = {
+        length: 0,
+        clear: () => store.clear(),
+        key: () => null,
+        getItem: (k: string) => store.get(k) ?? null,
+        setItem: (k: string, v: string) => { store.set(k, v); },
+        removeItem: (k: string) => { store.delete(k); },
+      };
+
+      const storageAdapter = createQuizStorage(persistentStorage);
+
+      // Session 1: Complete with worst answers
+      let state: QuizState = INITIAL_QUIZ_STATE;
+      state = quizReducer(state, { type: 'START_QUIZ' });
+      state = quizReducer(state, {
+        type: 'ANSWER_QUESTION',
+        payload: { key: 'sleepDurationHours', value: 4.5 },
+      });
+      state = quizReducer(state, {
+        type: 'ANSWER_QUESTION',
+        payload: { key: 'weekendShiftHours', value: 3.5 },
+      });
+      state = quizReducer(state, {
+        type: 'ANSWER_QUESTION',
+        payload: { key: 'hoursSinceLastCaffeineBeforeBed', value: 1.0 },
+      });
+      state = quizReducer(state, {
+        type: 'ANSWER_QUESTION',
+        payload: { key: 'screenMinutesInBed', value: 75 },
+      });
+      state = quizReducer(state, {
+        type: 'ANSWER_QUESTION',
+        payload: { key: 'morningLightFrequency', value: 'never' },
+      });
+
+      expect(state.result?.totalScore).toBe(0);
+      storageAdapter.saveSession(state);
+
+      // Retake: clear + reset
+      storageAdapter.clearSession();
+      state = quizReducer(state, { type: 'RETAKE_QUIZ' });
+      expect(state.answers).toEqual({});
+
+      // Session 2: Answer with perfect answers
+      state = quizReducer(state, { type: 'START_QUIZ' });
+      state = quizReducer(state, {
+        type: 'ANSWER_QUESTION',
+        payload: { key: 'sleepDurationHours', value: 8.0 },
+      });
+
+      // Only new answer present — no contamination from old session
+      expect(state.answers).toEqual({ sleepDurationHours: 8.0 });
+      expect(state.questionIndex).toBe(1);
+
+      // Save new session
+      storageAdapter.saveSession(state);
+      const restored = storageAdapter.loadSession();
+      expect(restored!.answers).toEqual({ sleepDurationHours: 8.0 });
+
+      // Complete new session with perfect answers
+      state = quizReducer(state, {
+        type: 'ANSWER_QUESTION',
+        payload: { key: 'weekendShiftHours', value: 0.0 },
+      });
+      state = quizReducer(state, {
+        type: 'ANSWER_QUESTION',
+        payload: { key: 'hoursSinceLastCaffeineBeforeBed', value: null },
+      });
+      state = quizReducer(state, {
+        type: 'ANSWER_QUESTION',
+        payload: { key: 'screenMinutesInBed', value: 0 },
+      });
+      state = quizReducer(state, {
+        type: 'ANSWER_QUESTION',
+        payload: { key: 'morningLightFrequency', value: 'almost_always' },
+      });
+
+      // New session score: 100, NOT 0 from old session
+      expect(state.step).toBe('result');
+      expect(state.result?.totalScore).toBe(100);
+      expect(state.result?.archetype.id).toBe('elite');
+    });
+  });
+
+  describe('6. Corrupted storage yields clean initial state', () => {
+    it('loads corrupted JSON from storage and falls back to null (initial state)', () => {
+      const corruptedStorage: Storage = {
+        length: 1,
+        clear: () => {},
+        key: () => null,
+        getItem: () => '{this-is-not-valid-json!!!',
+        setItem: () => {},
+        removeItem: () => {},
+      };
+
+      const storageAdapter = createQuizStorage(corruptedStorage);
+      const loaded = storageAdapter.loadSession();
+      expect(loaded).toBeNull();
+    });
+
+    it('loads structurally invalid payload (wrong version) and falls back to null', () => {
+      const wrongVersionStorage: Storage = {
+        length: 1,
+        clear: () => {},
+        key: () => null,
+        getItem: () => JSON.stringify({
+          version: 999,
+          step: 'question',
+          questionIndex: 2,
+          answers: { sleepDurationHours: 8.0 },
+          result: null,
+          updatedAt: Date.now(),
+        }),
+        setItem: () => {},
+        removeItem: () => {},
+      };
+
+      const storageAdapter = createQuizStorage(wrongVersionStorage);
+      expect(storageAdapter.loadSession()).toBeNull();
+    });
+
+    it('renders QuizContainer at Landing when storage contains corrupted data', () => {
+      const corruptedStorage = createQuizStorage({
+        length: 1,
+        clear: () => {},
+        key: () => null,
+        getItem: () => '{"version":1,"step":"INVALID","questionIndex":0,"answers":{},"result":null}',
+        setItem: () => {},
+        removeItem: () => {},
+      });
+
+      const html = renderToStaticMarkup(<QuizContainer storageAdapter={corruptedStorage} />);
+      expect(html).toContain('Start Quiz');
+      expect(html).toContain('Discover your');
+    });
+  });
+
+  describe('7. Unavailable localStorage does not crash the application', () => {
+    it('operates normally when all storage operations throw', () => {
+      const throwingStorage: Storage = {
+        length: 0,
+        clear: () => { throw new Error('SecurityError'); },
+        key: () => { throw new Error('SecurityError'); },
+        getItem: () => { throw new Error('SecurityError'); },
+        setItem: () => { throw new Error('SecurityError'); },
+        removeItem: () => { throw new Error('SecurityError'); },
+      };
+
+      const storageAdapter = createQuizStorage(throwingStorage);
+
+      // Load returns null without throwing
+      expect(() => storageAdapter.loadSession()).not.toThrow();
+      expect(storageAdapter.loadSession()).toBeNull();
+
+      // Save does not throw
+      expect(() => storageAdapter.saveSession(INITIAL_QUIZ_STATE)).not.toThrow();
+
+      // Clear does not throw
+      expect(() => storageAdapter.clearSession()).not.toThrow();
+    });
+
+    it('renders QuizContainer at Landing when storage is completely unavailable', () => {
+      const unavailableStorage = createQuizStorage({
+        length: 0,
+        clear: () => { throw new Error('SecurityError'); },
+        key: () => { throw new Error('SecurityError'); },
+        getItem: () => { throw new Error('SecurityError'); },
+        setItem: () => { throw new Error('SecurityError'); },
+        removeItem: () => { throw new Error('SecurityError'); },
+      });
+
+      const html = renderToStaticMarkup(<QuizContainer storageAdapter={unavailableStorage} />);
+      expect(html).toContain('Start Quiz');
+    });
+
+    it('quiz progresses normally with throwing storage — no crash', () => {
+      const throwingStorage = createQuizStorage({
+        length: 0,
+        clear: () => { throw new Error('SecurityError'); },
+        key: () => { throw new Error('SecurityError'); },
+        getItem: () => { throw new Error('SecurityError'); },
+        setItem: () => { throw new Error('SecurityError'); },
+        removeItem: () => { throw new Error('SecurityError'); },
+      });
+
+      // Reducer still works — storage failures are silently ignored
+      let state: QuizState = throwingStorage.loadSession() ?? INITIAL_QUIZ_STATE;
+      expect(state.step).toBe('landing');
+
+      state = quizReducer(state, { type: 'START_QUIZ' });
+      state = quizReducer(state, {
+        type: 'ANSWER_QUESTION',
+        payload: { key: 'sleepDurationHours', value: 8.0 },
+      });
+
+      expect(state.step).toBe('question');
+      expect(state.questionIndex).toBe(1);
+      expect(state.answers.sleepDurationHours).toBe(8.0);
+    });
+  });
+});

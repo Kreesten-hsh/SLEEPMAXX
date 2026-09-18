@@ -85,9 +85,12 @@
 
 ### Implementation for User Story 3
 
-- [ ] T019 [US3] Integrate automatic `localStorage` synchronization into `src/features/quiz/useQuizState.ts` (subscribes to state updates to persist session via `storage.saveSession`, and hydrates from `storage.loadSession` on mount)
-- [ ] T020 [US3] Implement full Retake Quiz reset in `src/features/quiz/useQuizState.ts` and `src/features/quiz/components/ResultScreen.tsx` (invoking `retakeQuiz` calls `storage.clearSession()`, clears all recorded answers, deletes result, resets state machine, and returns to `landing`; flow: `Result → Retake → Landing → Start Quiz → Question 1`)
-- [ ] T021 [US3] Add tests for persistence and retake flow in `src/features/quiz/QuizContainer.test.tsx` (test mid-quiz reload resumption, result reload preservation, and retake clearing `localStorage` and resetting to landing)
+- [X] T019 [US3] Integrate automatic `localStorage` synchronization into `src/features/quiz/useQuizState.ts` (subscribes to state updates to persist session via `storage.saveSession`, and hydrates from `storage.loadSession` on mount)
+  *(Audit: Already fully implemented. `useReducer` initializer hydrates from `storageAdapter.loadSession() ?? initial`. `useEffect` auto-saves on every state change. No code modification needed.)*
+- [X] T020 [US3] Implement full Retake Quiz reset in `src/features/quiz/useQuizState.ts` and `src/features/quiz/components/ResultScreen.tsx` (invoking `retakeQuiz` calls `storage.clearSession()`, clears all recorded answers, deletes result, resets state machine, and returns to `landing`; flow: `Result → Retake → Landing → Start Quiz → Question 1`)
+  *(Audit: Already fully implemented. `retakeQuiz` callback calls `storageAdapter.clearSession()` then dispatches `RETAKE_QUIZ` which returns `INITIAL_QUIZ_STATE`. No code modification needed.)*
+- [X] T021 [US3] Add tests for persistence and retake flow in `src/features/quiz/QuizContainer.test.tsx` (test mid-quiz reload resumption, result reload preservation, and retake clearing `localStorage` and resetting to landing)
+  *(Implemented: 11 new integration tests across 7 describe blocks — mid-quiz refresh restoration, multi-answer preservation, retake answer/result/step purge, retake localStorage purge via clearSession, new session isolation after retake, corrupted storage fallback (JSON + invalid version + QuizContainer render), unavailable storage resilience (operations + render + quiz progression). Total: 130 tests passing.)*
 
 **Checkpoint**: State resilience and full retake reset are verified and tested.
 
