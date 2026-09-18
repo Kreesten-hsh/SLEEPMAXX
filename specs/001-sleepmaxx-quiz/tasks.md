@@ -11,9 +11,9 @@
 
 **Purpose**: Scaffold the feature directory structure, define TypeScript contracts, and configure base design tokens.
 
-- [ ] T001 Create feature directory structure in `src/features/quiz/components/` and `src/features/quiz/data/` per implementation plan
-- [ ] T002 [P] Define feature domain types in `src/features/quiz/types.ts` (`QuizStep = 'landing' | 'question' | 'result'`, `QuizState`, `QuizAction`, `QuizQuestion`, `QuizOptionItem`, `PersistedQuizSession` with `version: 1`) importing scoring types from `src/core/scoringEngine.ts`
-- [ ] T003 [P] Configure design tokens and base styles in `src/index.css` (dark theme `#0B0F17`, high contrast text, glowing accents, mobile layout container `max-width: 440px`, `100dvh`, touch target `min-height: 52px`)
+- [X] T001 Create feature directory structure in `src/features/quiz/components/` and `src/features/quiz/data/` per implementation plan
+- [X] T002 [P] Define feature domain types in `src/features/quiz/types.ts` (`QuizStep = 'landing' | 'question' | 'result'`, `QuizState`, `QuizAction`, `QuizQuestion`, `QuizOptionItem`, `PersistedQuizSession` with `version: 1`) importing scoring types from `src/core/scoringEngine.ts`
+- [X] T003 [P] Configure design tokens and base styles in `src/index.css` (dark theme `#0B0F17`, high contrast text, glowing accents, mobile layout container `max-width: 440px`, `100dvh`, touch target `min-height: 52px`)
 
 ---
 
@@ -23,16 +23,16 @@
 
 **⚠️ CRITICAL**: No user story UI work can begin until this phase is complete.
 
-- [ ] T004 [P] Implement static question configuration and normalized option mappings in `src/features/quiz/data/questions.ts` for all 5 questions:
+- [X] T004 [P] Implement static question configuration and normalized option mappings in `src/features/quiz/data/questions.ts` for all 5 questions:
   - Q1: `sleepDurationHours` verbatim values `[4.5, 5.5, 6.5, 8.0, 9.5, 10.5]`
   - Q2: `weekendShiftHours` verbatim values `[0.0, 0.5, 1.5, 2.5, 3.5]`
   - Q3: `hoursSinceLastCaffeineBeforeBed` verbatim values `[null, 9.0, 7.0, 5.0, 3.0, 1.0]`
   - Q4: `screenMinutesInBed` verbatim values `[0, 10, 20, 45, 75]`
   - Q5: `morningLightFrequency` verbatim values `['almost_always', 'often', 'rarely', 'never']`
-- [ ] T005 [P] Implement storage adapter in `src/features/quiz/storage.ts` (`QuizStorage` interface: `loadSession()`, `saveSession(state)`, `clearSession()` managing key `'sleepmaxx_quiz_session_v1'` with schema validation, corrupted payload recovery returning `null`, and `try/catch` error tolerance)
-- [ ] T006 [P] Create unit tests for storage adapter in `src/features/quiz/storage.test.ts` (test serialization, deserialization, corrupted JSON recovery, version mismatch handling, storage unavailable fallback, and `clearSession` purge)
-- [ ] T007 Implement state machine reducer and `useQuizState` hook in `src/features/quiz/useQuizState.ts` with initial state `{ step: 'landing', questionIndex: 0, answers: {}, result: null }`, handling actions `START_QUIZ`, `ANSWER_QUESTION`, `PREVIOUS_QUESTION`, `RETAKE_QUIZ`, and `RESTORE_SESSION`, triggering `calculateSleepmaxxScore(answers)` strictly on Question 5 completion
-- [ ] T008 Create unit tests for state machine and reducer in `src/features/quiz/useQuizState.test.ts` (test initial state, `START_QUIZ`, answer accumulation across 5 questions, scoring trigger invariant when all 5 keys defined, `PREVIOUS_QUESTION` bounds clamping `0 <= questionIndex <= 4`, and `RETAKE_QUIZ` reset)
+- [X] T005 [P] Implement storage adapter in `src/features/quiz/storage.ts` (`QuizStorage` interface: `loadSession()`, `saveSession(state)`, `clearSession()` managing key `'sleepmaxx_quiz_session_v1'` with schema validation, corrupted payload recovery returning `null`, and `try/catch` error tolerance)
+- [X] T006 [P] Create unit tests for storage adapter in `src/features/quiz/storage.test.ts` (test serialization, deserialization, corrupted JSON recovery, version mismatch handling, storage unavailable fallback, and `clearSession` purge)
+- [X] T007 Implement state machine reducer and `useQuizState` hook in `src/features/quiz/useQuizState.ts` with initial state `{ step: 'landing', questionIndex: 0, answers: {}, result: null }`, handling actions `START_QUIZ`, `ANSWER_QUESTION`, `PREVIOUS_QUESTION`, `RETAKE_QUIZ`, and `RESTORE_SESSION`, triggering `calculateSleepmaxxScore(answers)` strictly on Question 5 completion
+- [X] T008 Create unit tests for state machine and reducer in `src/features/quiz/useQuizState.test.ts` (test initial state, `START_QUIZ`, answer accumulation across 5 questions, scoring trigger invariant when all 5 keys defined, `PREVIOUS_QUESTION` bounds clamping `0 <= questionIndex <= 4`, and `RETAKE_QUIZ` reset)
 
 **Checkpoint**: Foundation ready — all core models, data, storage, and state machine transitions tested. UI implementation can now begin.
 
@@ -46,13 +46,13 @@
 
 ### Implementation for User Story 1
 
-- [ ] T009 [P] [US1] Create progress indicator component in `src/features/quiz/components/ProgressBar.tsx` (renders visual bar and step label "Question X of 5", progress 20% to 100%)
-- [ ] T010 [P] [US1] Create landing view component in `src/features/quiz/components/LandingScreen.tsx` (displays "Sleepmaxx" header, core promise "Discover your Sleepmaxx Score. Can you reach 90 in 7 days?", and primary CTA "Start Quiz" button)
-- [ ] T011 [US1] Create question view component with auto-advance in `src/features/quiz/components/QuestionScreen.tsx` (renders single question with options; on tap: immediately applies selected visual state, waits ~150ms visual highlight delay for tactile feedback, gates rapid multi-taps, and auto-advances to next question; no "Next" button)
-- [ ] T012 [P] [US1] Create result view component in `src/features/quiz/components/ResultScreen.tsx` (renders calculated score 0–100, archetype badge, primary weakness with points lost, category breakdown, non-medical wellness disclaimer, and retake action)
-- [ ] T013 [US1] Implement main feature container orchestrator in `src/features/quiz/components/QuizContainer.tsx` (binds `useQuizState`, conditionally renders `LandingScreen`, `QuestionScreen`, or `ResultScreen`, passes action callbacks)
-- [ ] T014 [US1] Connect `QuizContainer` into root application in `src/App.tsx`
-- [ ] T015 [US1] Create integration test for the end-to-end happy path in `src/features/quiz/QuizContainer.test.tsx` (simulates landing $\rightarrow$ start $\rightarrow$ 5 questions with auto-advance $\rightarrow$ result verification with 100/100 ELITE and non-medical disclaimer)
+- [X] T009 [P] [US1] Create progress indicator component in `src/features/quiz/components/ProgressBar.tsx` (renders visual bar and step label "Question X of 5", progress 20% to 100%)
+- [X] T010 [P] [US1] Create landing view component in `src/features/quiz/components/LandingScreen.tsx` (displays "Sleepmaxx" header, core promise "Discover your Sleepmaxx Score. Can you reach 90 in 7 days?", and primary CTA "Start Quiz" button)
+- [X] T011 [US1] Create question view component with auto-advance in `src/features/quiz/components/QuestionScreen.tsx` (renders single question with options; on tap: immediately applies selected visual state, waits ~150ms visual highlight delay for tactile feedback, gates rapid multi-taps, and auto-advances to next question; no "Next" button)
+- [X] T012 [P] [US1] Create result view component in `src/features/quiz/components/ResultScreen.tsx` (renders calculated score 0–100, archetype badge, primary weakness with points lost, category breakdown, non-medical wellness disclaimer, and retake action)
+- [X] T013 [US1] Implement main feature container orchestrator in `src/features/quiz/components/QuizContainer.tsx` (binds `useQuizState`, conditionally renders `LandingScreen`, `QuestionScreen`, or `ResultScreen`, passes action callbacks)
+- [X] T014 [US1] Connect `QuizContainer` into root application in `src/App.tsx`
+- [X] T015 [US1] Create integration test for the end-to-end happy path in `src/features/quiz/QuizContainer.test.tsx` (simulates landing $\rightarrow$ start $\rightarrow$ 5 questions with auto-advance $\rightarrow$ result verification with 100/100 ELITE and non-medical disclaimer)
 
 **Checkpoint**: User Story 1 is fully functional and testable independently as the minimal viable product (MVP).
 
