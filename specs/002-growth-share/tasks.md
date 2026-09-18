@@ -66,9 +66,9 @@
 
 **Purpose**: Ensure zero regression across the existing test suite, measure asset generation latency, confirm zero scoring engine drift, zero new dependencies, and verified production PWA build.
 
-- [ ] T009 [SHARE] Run automated verification suite: `npm test`, `npx tsc -b --noEmit`, `npm run lint`, and `npm run build`
-- [ ] T010 [SHARE] Verify PWA offline compatibility and responsive behavior across mobile viewports (375px, 390px, 430px) ensuring zero horizontal scroll and clean layout
-- [ ] T011 [SHARE] Validate asset generation latency via benchmark test (ensure Canvas rendering time is measured and verified to execute rapidly in memory to preserve user gesture context)
+- [x] T009 [SHARE] Run automated verification suite: `npm test`, `npx tsc -b --noEmit`, `npm run lint`, and `npm run build`
+- [x] T010 [SHARE] Verify PWA offline compatibility and responsive behavior across mobile viewports (375px, 390px, 430px) ensuring zero horizontal scroll and clean layout
+- [x] T011 [SHARE] Validate asset generation latency via benchmark test (ensure Canvas rendering time is measured and verified to execute rapidly in memory to preserve user gesture context)
 
 ---
 

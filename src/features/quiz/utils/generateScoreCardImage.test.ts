@@ -414,4 +414,119 @@ describe('generateScoreCardImage: Pure Canvas 2D Asset Generator', () => {
     expect(texts.some((t) => t.includes('retake quiz'))).toBe(false);
     expect(texts.some((t) => t.includes('share score'))).toBe(false);
   });
+
+  // ─── 20. Performance Latency Benchmark (T011) ──────────────────────
+  it('measures in-memory generation latency across representative score archetypes (T011)', async () => {
+    const testCases: { score: number; label: string; result: SleepmaxxResult }[] = [
+      {
+        score: 0,
+        label: 'COOKED',
+        result: {
+          totalScore: 0,
+          categories: {
+            duration: { earned: 0, max: 35, lost: 35 },
+            consistency: { earned: 0, max: 25, lost: 25 },
+            caffeine: { earned: 0, max: 20, lost: 20 },
+            screen: { earned: 0, max: 10, lost: 10 },
+            morningLight: { earned: 0, max: 10, lost: 10 },
+          },
+          archetype: { id: 'cooked', label: 'COOKED' },
+          biggestWeakness: { id: 'duration', label: 'Sleep Duration', pointsLost: 35 },
+        },
+      },
+      {
+        score: 50,
+        label: 'ZOMBIE',
+        result: {
+          totalScore: 50,
+          categories: {
+            duration: { earned: 15, max: 35, lost: 20 },
+            consistency: { earned: 15, max: 25, lost: 10 },
+            caffeine: { earned: 10, max: 20, lost: 10 },
+            screen: { earned: 5, max: 10, lost: 5 },
+            morningLight: { earned: 5, max: 10, lost: 5 },
+          },
+          archetype: { id: 'zombie', label: 'ZOMBIE' },
+          biggestWeakness: { id: 'duration', label: 'Sleep Duration', pointsLost: 20 },
+        },
+      },
+      {
+        score: 65,
+        label: 'RECOVERING',
+        result: {
+          totalScore: 65,
+          categories: {
+            duration: { earned: 20, max: 35, lost: 15 },
+            consistency: { earned: 18, max: 25, lost: 7 },
+            caffeine: { earned: 15, max: 20, lost: 5 },
+            screen: { earned: 6, max: 10, lost: 4 },
+            morningLight: { earned: 6, max: 10, lost: 4 },
+          },
+          archetype: { id: 'recovering', label: 'RECOVERING' },
+          biggestWeakness: { id: 'duration', label: 'Sleep Duration', pointsLost: 15 },
+        },
+      },
+      {
+        score: 80,
+        label: 'SLEEPMAXXED',
+        result: {
+          totalScore: 80,
+          categories: {
+            duration: { earned: 30, max: 35, lost: 5 },
+            consistency: { earned: 22, max: 25, lost: 3 },
+            caffeine: { earned: 18, max: 20, lost: 2 },
+            screen: { earned: 5, max: 10, lost: 5 },
+            morningLight: { earned: 5, max: 10, lost: 5 },
+          },
+          archetype: { id: 'sleepmaxxed', label: 'SLEEPMAXXED' },
+          biggestWeakness: { id: 'duration', label: 'Sleep Duration', pointsLost: 5 },
+        },
+      },
+      {
+        score: 100,
+        label: 'ELITE',
+        result: {
+          totalScore: 100,
+          categories: {
+            duration: { earned: 35, max: 35, lost: 0 },
+            consistency: { earned: 25, max: 25, lost: 0 },
+            caffeine: { earned: 20, max: 20, lost: 0 },
+            screen: { earned: 10, max: 10, lost: 0 },
+            morningLight: { earned: 10, max: 10, lost: 0 },
+          },
+          archetype: { id: 'elite', label: 'ELITE' },
+          biggestWeakness: { id: 'duration', label: 'Sleep Duration', pointsLost: 0 },
+        },
+      },
+    ];
+
+    const iterationsPerCase = 20;
+    const measurements: { case: string; duration: number }[] = [];
+
+    // Warm-up run
+    await generateScoreCardImage(testCases[0].result, { canvas: mockCanvasBundle.canvas });
+
+    for (const tc of testCases) {
+      for (let i = 0; i < iterationsPerCase; i++) {
+        const t0 = performance.now();
+        const file = await generateScoreCardImage(tc.result, { canvas: mockCanvasBundle.canvas });
+        const t1 = performance.now();
+        expect(file).toBeInstanceOf(File);
+        measurements.push({ case: tc.label, duration: t1 - t0 });
+      }
+    }
+
+    const durations = measurements.map((m) => m.duration);
+    durations.sort((a, b) => a - b);
+    const min = durations[0];
+    const max = durations[durations.length - 1];
+    const avg = durations.reduce((s, v) => s + v, 0) / durations.length;
+    const median = durations[Math.floor(durations.length / 2)];
+
+    expect(measurements.length).toBe(testCases.length * iterationsPerCase);
+    expect(min).toBeGreaterThanOrEqual(0);
+    expect(max).toBeLessThan(100);
+    expect(avg).toBeGreaterThan(0);
+    expect(median).toBeGreaterThan(0);
+  });
 });
