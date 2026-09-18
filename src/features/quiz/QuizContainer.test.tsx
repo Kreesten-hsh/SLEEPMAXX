@@ -1,3 +1,4 @@
+import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { QuizContainer } from './components/QuizContainer';
@@ -1006,6 +1007,123 @@ describe('User Story 3: In-Session Resilience & Refresh Handling Integration', (
       },
     };
 
+    function findElement(
+      tree: unknown,
+      predicate: (el: React.ReactElement<Record<string, unknown>>) => boolean
+    ): React.ReactElement<Record<string, unknown>> | null {
+      if (!tree || typeof tree !== 'object') return null;
+      if (React.isValidElement(tree)) {
+        const el = tree as React.ReactElement<Record<string, unknown>>;
+        if (predicate(el)) return el;
+        const children = (el.props as { children?: React.ReactNode })?.children;
+        if (Array.isArray(children)) {
+          for (const child of children) {
+            const found = findElement(child, predicate);
+            if (found) return found;
+          }
+        } else if (children) {
+          return findElement(children, predicate);
+        }
+      }
+      return null;
+    }
+
+    function mountResultScreen(props: { result: SleepmaxxResult; onRetake: () => void }) {
+      const hooks: unknown[] = [];
+      let hookIndex = 0;
+      let currentTree: React.ReactElement | null = null;
+
+      const testDispatcher = {
+        useState: (initial: unknown) => {
+          const idx = hookIndex++;
+          if (hooks[idx] === undefined) {
+            hooks[idx] = typeof initial === 'function' ? (initial as () => unknown)() : initial;
+          }
+          const setState = (nextVal: unknown) => {
+            hooks[idx] =
+              typeof nextVal === 'function'
+                ? (nextVal as (prev: unknown) => unknown)(hooks[idx])
+                : nextVal;
+            render();
+          };
+          return [hooks[idx], setState];
+        },
+        useRef: (initial: unknown) => {
+          const idx = hookIndex++;
+          if (hooks[idx] === undefined) {
+            hooks[idx] = { current: initial };
+          }
+          return hooks[idx];
+        },
+      };
+
+      function render(): React.ReactElement {
+        const ReactInternals = (React as unknown as {
+          __CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE: {
+            H: unknown;
+          };
+        }).__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
+
+        const prevDispatcher = ReactInternals.H;
+        ReactInternals.H = testDispatcher;
+        hookIndex = 0;
+        try {
+          currentTree = (ResultScreen as (p: typeof props) => React.ReactElement)(props);
+          return currentTree;
+        } finally {
+          ReactInternals.H = prevDispatcher;
+        }
+      }
+
+      render();
+
+      type TestElementProps = Record<string, unknown> & {
+        children?: React.ReactNode;
+        disabled?: boolean;
+        type?: string;
+        role?: string;
+        onClick?: (e?: unknown) => Promise<void> | void;
+      };
+
+      return {
+        getTree: () => currentTree!,
+        getShareButton: () => {
+          const btn = findElement(
+            currentTree,
+            (el) => el.props?.['data-testid'] === 'share-score-btn'
+          );
+          if (!btn) throw new Error('Share button not found');
+          return btn as React.ReactElement<TestElementProps>;
+        },
+        getRetakeButton: () => {
+          const btn = findElement(
+            currentTree,
+            (el) => el.props?.['data-testid'] === 'retake-quiz-btn'
+          );
+          if (!btn) throw new Error('Retake button not found');
+          return btn as React.ReactElement<TestElementProps>;
+        },
+        getLiveRegion: () => {
+          const region = findElement(
+            currentTree,
+            (el) => el.props?.['data-testid'] === 'result-status-live'
+          );
+          if (!region) throw new Error('Live region not found');
+          return region as React.ReactElement<TestElementProps>;
+        },
+        clickShare: async () => {
+          const btn = findElement(
+            currentTree,
+            (el) => el.props?.['data-testid'] === 'share-score-btn'
+          );
+          if (!btn || typeof btn.props?.onClick !== 'function') {
+            throw new Error('Share button has no onClick function');
+          }
+          return (btn.props.onClick as (e: unknown) => Promise<void>)({});
+        },
+      };
+    }
+
     beforeEach(() => {
       vi.clearAllMocks();
     });
@@ -1050,6 +1168,11 @@ describe('User Story 3: In-Session Resilience & Refresh Handling Integration', (
       expect(match).not.toBeNull();
       expect(match![0]).not.toContain('role="button"');
       expect(match![0]).not.toContain('role=');
+
+      // Also verify on the component instance element props directly
+      const mounted = mountResultScreen({ result: sampleResult, onRetake: () => {} });
+      expect(mounted.getShareButton().props.role).toBeUndefined();
+      expect(mounted.getShareButton().props.type).toBe('button');
     });
 
     it('3. Primary ordering: Share Score appears before Retake Quiz in the DOM', () => {
@@ -1074,100 +1197,73 @@ describe('User Story 3: In-Session Resilience & Refresh Handling Integration', (
     });
 
     it('5. Loading state: disabled, aria-busy="true", loading text, and gates rapid double activation', async () => {
-      // Check loading DOM output
-      const loadingHtml = renderToStaticMarkup(
-        <ResultScreen result={sampleResult} onRetake={() => {}} isSharing={true} />
-      );
-      expect(loadingHtml).toContain('disabled');
-      expect(loadingHtml).toContain('aria-busy="true"');
-      expect(loadingHtml).toContain('Sharing…');
-      expect(loadingHtml).not.toContain('>Share Score<');
-
-      // Gate double activation: while first call is pending, second call is ignored
       let resolvePromise!: (val: unknown) => void;
       const pendingPromise = new Promise((resolve) => {
         resolvePromise = resolve;
       });
       vi.mocked(shareSleepmaxxScore).mockReturnValue(pendingPromise as any);
 
-      let controls!: { handleShare: () => Promise<void> };
-      renderToStaticMarkup(
-        <ResultScreen
-          result={sampleResult}
-          onRetake={() => {}}
-          onShareStateChange={(state) => {
-            controls = state;
-          }}
-        />
-      );
+      const mounted = mountResultScreen({
+        result: sampleResult,
+        onRetake: () => {},
+      });
 
-      const firstCall = controls.handleShare();
+      // Initial idle state
+      expect(mounted.getShareButton().props.disabled).toBe(false);
+      expect(mounted.getShareButton().props['aria-busy']).toBeUndefined();
+      expect(mounted.getShareButton().props.children).toBe('Share Score');
+
+      // 1. User clicks the actual rendered Share button
+      const firstClick = mounted.clickShare();
+
+      // Observable UI state while processing:
+      expect(shareSleepmaxxScore).toHaveBeenCalledTimes(1);
+      expect(mounted.getShareButton().props.disabled).toBe(true);
+      expect(mounted.getShareButton().props['aria-busy']).toBe('true');
+      expect(mounted.getShareButton().props.children).toBe('Sharing…');
+
+      // 2. Rapid double click while still processing: must be ignored by instance lock
+      const secondClick = mounted.clickShare();
       expect(shareSleepmaxxScore).toHaveBeenCalledTimes(1);
 
-      // Rapid second tap while still handling: must be ignored
-      const secondCall = controls.handleShare();
-      expect(shareSleepmaxxScore).toHaveBeenCalledTimes(1);
-
+      // Resolve pending orchestrator
       resolvePromise({ status: 'shared' });
-      await firstCall;
-      await secondCall;
+      await firstClick;
+      await secondClick;
+
+      // Observable UI state after resolution: returns to idle
+      expect(mounted.getShareButton().props.disabled).toBe(false);
+      expect(mounted.getShareButton().props['aria-busy']).toBeUndefined();
+      expect(mounted.getShareButton().props.children).toBe('Share Score');
     });
 
     it('6. Native success feedback: announces accessible confirmation via live region', async () => {
       vi.mocked(shareSleepmaxxScore).mockResolvedValue({ status: 'shared' });
 
-      let controls!: { statusMessage: string; handleShare: () => Promise<void> };
-      renderToStaticMarkup(
-        <ResultScreen
-          result={sampleResult}
-          onRetake={() => {}}
-          onShareStateChange={(state) => {
-            controls = state;
-          }}
-        />
-      );
+      const mounted = mountResultScreen({
+        result: sampleResult,
+        onRetake: () => {},
+      });
 
-      await controls.handleShare();
-      expect(controls.statusMessage).toBe('ScoreCard shared successfully.');
+      await mounted.clickShare();
 
-      const feedbackHtml = renderToStaticMarkup(
-        <ResultScreen
-          result={sampleResult}
-          onRetake={() => {}}
-          statusMessage={controls.statusMessage}
-        />
-      );
-      expect(feedbackHtml).toContain('data-testid="result-status-live"');
-      expect(feedbackHtml).toContain('ScoreCard shared successfully.');
+      expect(shareSleepmaxxScore).toHaveBeenCalledTimes(1);
+      expect(mounted.getLiveRegion().props.children).toBe('ScoreCard shared successfully.');
+      expect(mounted.getShareButton().props.disabled).toBe(false);
+      expect(mounted.getShareButton().props.children).toBe('Share Score');
     });
 
     it('7. Download fallback feedback: announces exact download and clipboard copy message', async () => {
       vi.mocked(shareSleepmaxxScore).mockResolvedValue({ status: 'downloaded' });
 
-      let controls!: { statusMessage: string; handleShare: () => Promise<void> };
-      renderToStaticMarkup(
-        <ResultScreen
-          result={sampleResult}
-          onRetake={() => {}}
-          onShareStateChange={(state) => {
-            controls = state;
-          }}
-        />
-      );
+      const mounted = mountResultScreen({
+        result: sampleResult,
+        onRetake: () => {},
+      });
 
-      await controls.handleShare();
-      expect(controls.statusMessage).toBe(
-        'ScoreCard image downloaded. Share link copied to clipboard.'
-      );
+      await mounted.clickShare();
 
-      const feedbackHtml = renderToStaticMarkup(
-        <ResultScreen
-          result={sampleResult}
-          onRetake={() => {}}
-          statusMessage={controls.statusMessage}
-        />
-      );
-      expect(feedbackHtml).toContain(
+      expect(mounted.getLiveRegion().props.children).toBe(
         'ScoreCard image downloaded. Share link copied to clipboard.'
       );
     });
@@ -1175,65 +1271,38 @@ describe('User Story 3: In-Session Resilience & Refresh Handling Integration', (
     it('8. Clipboard failure: distinguishes download from clipboard failure and never claims image was copied', async () => {
       vi.mocked(shareSleepmaxxScore).mockResolvedValue({ status: 'downloaded_text_failed' });
 
-      let controls!: { statusMessage: string; handleShare: () => Promise<void> };
-      renderToStaticMarkup(
-        <ResultScreen
-          result={sampleResult}
-          onRetake={() => {}}
-          onShareStateChange={(state) => {
-            controls = state;
-          }}
-        />
-      );
+      const mounted = mountResultScreen({
+        result: sampleResult,
+        onRetake: () => {},
+      });
 
-      await controls.handleShare();
-      expect(controls.statusMessage).toContain('ScoreCard image downloaded');
-      expect(controls.statusMessage).toContain('Could not copy share link to clipboard');
-      expect(controls.statusMessage).not.toContain('copied to clipboard.');
+      await mounted.clickShare();
 
-      const feedbackHtml = renderToStaticMarkup(
-        <ResultScreen
-          result={sampleResult}
-          onRetake={() => {}}
-          statusMessage={controls.statusMessage}
-        />
+      const msg = String(mounted.getLiveRegion().props.children);
+      expect(msg).toBe(
+        'ScoreCard image downloaded. Could not copy share link to clipboard.'
       );
-      expect(feedbackHtml).toContain(controls.statusMessage);
+      expect(msg).toContain('ScoreCard image downloaded');
+      expect(msg).toContain('Could not copy share link to clipboard');
+      expect(msg).not.toContain('copied to clipboard.');
+      expect(msg.toLowerCase()).not.toContain('image copied');
+      expect(msg.toLowerCase()).not.toContain('copied image');
     });
 
     it('9. Abort isolation: silent reset to idle with zero error messages on user cancellation', async () => {
       vi.mocked(shareSleepmaxxScore).mockResolvedValue({ status: 'aborted' });
 
-      let controls!: {
-        isSharing: boolean;
-        statusMessage: string;
-        handleShare: () => Promise<void>;
-      };
-      renderToStaticMarkup(
-        <ResultScreen
-          result={sampleResult}
-          onRetake={() => {}}
-          onShareStateChange={(state) => {
-            controls = state;
-          }}
-        />
-      );
+      const mounted = mountResultScreen({
+        result: sampleResult,
+        onRetake: () => {},
+      });
 
-      await controls.handleShare();
-      expect(controls.statusMessage).toBe('');
-      expect(controls.isSharing).toBe(false);
+      await mounted.clickShare();
 
-      const idleHtml = renderToStaticMarkup(
-        <ResultScreen
-          result={sampleResult}
-          onRetake={() => {}}
-          statusMessage=""
-          isSharing={false}
-        />
-      );
-      expect(idleHtml).toContain('>Share Score<');
-      expect(idleHtml).not.toContain('disabled');
-      expect(idleHtml).not.toContain('aria-busy="true"');
+      expect(mounted.getLiveRegion().props.children).toBe('');
+      expect(mounted.getShareButton().props.disabled).toBe(false);
+      expect(mounted.getShareButton().props['aria-busy']).toBeUndefined();
+      expect(mounted.getShareButton().props.children).toBe('Share Score');
     });
 
     it('10. Generation failure: displays exact required recovery copy', async () => {
@@ -1242,32 +1311,18 @@ describe('User Story 3: In-Session Resilience & Refresh Handling Integration', (
         message: 'Unable to generate scorecard image. Please take a screenshot.',
       });
 
-      let controls!: { statusMessage: string; handleShare: () => Promise<void> };
-      renderToStaticMarkup(
-        <ResultScreen
-          result={sampleResult}
-          onRetake={() => {}}
-          onShareStateChange={(state) => {
-            controls = state;
-          }}
-        />
-      );
+      const mounted = mountResultScreen({
+        result: sampleResult,
+        onRetake: () => {},
+      });
 
-      await controls.handleShare();
-      expect(controls.statusMessage).toBe(
+      await mounted.clickShare();
+
+      expect(mounted.getLiveRegion().props.children).toBe(
         'Unable to generate scorecard image. Please take a screenshot.'
       );
-
-      const failHtml = renderToStaticMarkup(
-        <ResultScreen
-          result={sampleResult}
-          onRetake={() => {}}
-          statusMessage={controls.statusMessage}
-        />
-      );
-      expect(failHtml).toContain(
-        'Unable to generate scorecard image. Please take a screenshot.'
-      );
+      expect(mounted.getShareButton().props.disabled).toBe(false);
+      expect(mounted.getShareButton().props.children).toBe('Share Score');
     });
 
     it('11. Download failure: displays exact required download failure feedback', async () => {
@@ -1276,36 +1331,37 @@ describe('User Story 3: In-Session Resilience & Refresh Handling Integration', (
         message: 'Unable to download scorecard image.',
       });
 
-      let controls!: { statusMessage: string; handleShare: () => Promise<void> };
-      renderToStaticMarkup(
-        <ResultScreen
-          result={sampleResult}
-          onRetake={() => {}}
-          onShareStateChange={(state) => {
-            controls = state;
-          }}
-        />
-      );
+      const mounted = mountResultScreen({
+        result: sampleResult,
+        onRetake: () => {},
+      });
 
-      await controls.handleShare();
-      expect(controls.statusMessage).toBe('Unable to download scorecard image.');
+      await mounted.clickShare();
 
-      const failHtml = renderToStaticMarkup(
-        <ResultScreen
-          result={sampleResult}
-          onRetake={() => {}}
-          statusMessage={controls.statusMessage}
-        />
-      );
-      expect(failHtml).toContain('Unable to download scorecard image.');
+      expect(mounted.getLiveRegion().props.children).toBe('Unable to download scorecard image.');
+      expect(mounted.getShareButton().props.disabled).toBe(false);
+      expect(mounted.getShareButton().props.children).toBe('Share Score');
     });
 
     it('12. Retake regression: Retake Quiz remains fully functional and independent of Share action', () => {
       const onRetake = vi.fn();
+      const mounted = mountResultScreen({
+        result: sampleResult,
+        onRetake,
+      });
+
+      const retakeBtn = mounted.getRetakeButton();
+      expect(retakeBtn.props.children).toBe('Retake Quiz');
+      expect(retakeBtn.props['data-testid']).toBe('retake-quiz-btn');
+
+      // Trigger retake click
+      retakeBtn.props.onClick?.({} as any);
+      expect(onRetake).toHaveBeenCalledTimes(1);
+
+      // Verify static markup
       const html = renderToStaticMarkup(
         <ResultScreen result={sampleResult} onRetake={onRetake} />
       );
-
       expect(html).toContain('data-testid="retake-quiz-btn"');
       expect(html).toContain('Retake Quiz');
       expect(html).toContain('data-testid="share-score-btn"');

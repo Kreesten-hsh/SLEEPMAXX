@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import type { SleepmaxxResult } from '../types';
 import { ScoreCard } from './ScoreCard';
 import { shareSleepmaxxScore } from '../utils/shareScore';
@@ -7,13 +7,6 @@ export interface ResultScreenProps {
   readonly result: SleepmaxxResult;
   readonly onRetake: () => void;
   readonly scoreCardRef?: React.Ref<HTMLDivElement>;
-  readonly isSharing?: boolean;
-  readonly statusMessage?: string;
-  readonly onShareStateChange?: (state: {
-    isSharing: boolean;
-    statusMessage: string;
-    handleShare: () => Promise<void>;
-  }) => void;
 }
 
 const SHARE_FEEDBACK_MESSAGES = {
@@ -39,65 +32,34 @@ function getShareFeedbackMessage(
   return SHARE_FEEDBACK_MESSAGES[status] ?? '';
 }
 
-const inFlightOperations = new Set<string>();
-
 export const ResultScreen: React.FC<ResultScreenProps> = ({
   result,
   onRetake,
   scoreCardRef,
-  isSharing: propIsSharing,
-  statusMessage: propStatusMessage,
-  onShareStateChange,
 }) => {
-  const [internalIsSharing, setInternalIsSharing] = useState<boolean>(false);
-  const [internalStatusMessage, setInternalStatusMessage] = useState<string>('');
-
-  const isSharing = propIsSharing ?? internalIsSharing;
-  const statusMessage = propStatusMessage ?? internalStatusMessage;
+  const [isSharing, setIsSharing] = useState<boolean>(false);
+  const [statusMessage, setStatusMessage] = useState<string>('');
+  const isShareInProgressRef = useRef<boolean>(false);
 
   const handleShare = async () => {
     // Gate double activation during active share processing
-    if (isSharing || inFlightOperations.has('share')) {
+    if (isSharing || isShareInProgressRef.current) {
       return;
     }
 
-    inFlightOperations.add('share');
-    setInternalIsSharing(true);
-    onShareStateChange?.({
-      isSharing: true,
-      statusMessage,
-      handleShare,
-    });
+    isShareInProgressRef.current = true;
+    setIsSharing(true);
 
     try {
       const shareResult = await shareSleepmaxxScore(result);
-      const nextMessage = getShareFeedbackMessage(shareResult.status, shareResult.message);
-      setInternalStatusMessage(nextMessage);
-      onShareStateChange?.({
-        isSharing: false,
-        statusMessage: nextMessage,
-        handleShare,
-      });
+      setStatusMessage(getShareFeedbackMessage(shareResult.status, shareResult.message));
     } catch {
-      setInternalStatusMessage(SHARE_FEEDBACK_MESSAGES.failed);
-      onShareStateChange?.({
-        isSharing: false,
-        statusMessage: SHARE_FEEDBACK_MESSAGES.failed,
-        handleShare,
-      });
+      setStatusMessage(SHARE_FEEDBACK_MESSAGES.failed);
     } finally {
-      inFlightOperations.delete('share');
-      setInternalIsSharing(false);
+      isShareInProgressRef.current = false;
+      setIsSharing(false);
     }
   };
-
-  if (onShareStateChange) {
-    onShareStateChange({
-      isSharing,
-      statusMessage,
-      handleShare,
-    });
-  }
 
   return (
     <main
