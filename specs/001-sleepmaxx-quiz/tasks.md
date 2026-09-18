@@ -104,11 +104,14 @@
 
 ### Implementation for User Story 4
 
-- [ ] T022 [P] [US4] Implement isolated `<ScoreCard />` component in `src/features/quiz/components/ScoreCard.tsx` (conforms to `ScoreCardProps` contract; includes `.scorecard-container`, `data-testid="score-value"`, `data-testid="archetype-badge"`, `data-testid="weakness-badge"`, `data-testid="brand-watermark"`, prepared for future canvas ref)
-- [ ] T023 [US4] Integrate `<ScoreCard />` into `src/features/quiz/components/ResultScreen.tsx` and style for mobile screen capture
-- [ ] T024 [P] [US4] Add component unit tests for `<ScoreCard />` in `src/features/quiz/components/ScoreCard.test.tsx` (asserts all `data-testid` attributes, archetype styling badges, weakness deduction display, and brand watermark rendering)
+- [X] T022 [P] [US4] Implement isolated `<ScoreCard />` component in `src/features/quiz/components/ScoreCard.tsx` (conforms to `ScoreCardProps` contract; includes `.scorecard-container`, `data-testid="score-value"`, `data-testid="archetype-badge"`, `data-testid="weakness-badge"`, `data-testid="brand-watermark"`, prepared for future canvas ref)
+  *(Implemented: Pure presentation component receiving SleepmaxxResult, rendering score hero, archetype badge, weakness badge, routine breakdown, non-medical disclaimer, and optional retake button. Supports ref forwarding for future canvas capture.)*
+- [X] T023 [US4] Integrate `<ScoreCard />` into `src/features/quiz/components/ResultScreen.tsx` and style for mobile screen capture
+  *(Implemented: ResultScreen delegates result display to ScoreCard while passing onRetake callback. Flow, persistence, and retake fully preserved.)*
+- [X] T024 [P] [US4] Add component unit tests for `<ScoreCard />` in `src/features/quiz/components/ScoreCard.test.tsx` (asserts all `data-testid` attributes, archetype styling badges, weakness deduction display, and brand watermark rendering)
+  *(Implemented: 19 unit & integration tests covering score, archetype, weakness, category breakdown, non-medical disclaimer, ResultScreen integration, QuizContainer integration, Retake regression, extreme scores (0 and 100), and archetype score boundary values.)*
 
-**Checkpoint**: Result view is packaged into an isolated, screenshot-ready card.
+**Checkpoint**: Result view is packaged into an isolated, screenshot-ready card. Total: 149 tests passing.
 
 ---
 
