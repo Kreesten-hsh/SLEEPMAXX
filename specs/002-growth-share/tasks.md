@@ -20,7 +20,7 @@
 
 ## Phase 2: Native Canvas 2D Asset Generator
 
-**Purpose**: Build a headless, zero-dependency Canvas 2D renderer producing a calibrated 9:16 vertical PNG image ($1080 \times 1920\text{ px}$) in $<25\text{ms}$.
+**Purpose**: Build a headless, zero-dependency Canvas 2D renderer producing a calibrated 9:16 vertical PNG image ($1080 \times 1920\text{ px}$) designed for low execution latency within the user gesture window.
 
 - [ ] T003 [P] [SHARE] Implement pure Canvas 2D asset generator in `src/features/quiz/utils/generateScoreCardImage.ts` ($1080 \times 1920\text{ px}$, deep dark background `#0B0F17`, radial glow, score hero, archetype pill, weakness highlight, 5 breakdown bars, `sleepmaxx.app` watermark, and disclaimer)
 - [ ] T004 [P] [SHARE] Create unit tests for Canvas generator in `src/features/quiz/utils/generateScoreCardImage.test.ts` (verify $1080 \times 1920$ output dimensions, MIME `image/png`, deterministic rendering, and score edge cases 0 and 100)
@@ -29,17 +29,18 @@
 
 ---
 
-## Phase 3: Defensive Share Orchestrator & Multi-Tier Fallback
+## Phase 3: Defensive Share Orchestrator & Fallback Strategy
 
-**Purpose**: Build the 4-level share service implementing Web Share API with File, Web Share text fallback, direct PNG download, and clipboard copy.
+**Purpose**: Build the share service implementing Web Share API with File, direct PNG download fallback, separate companion clipboard text copy, and strict `AbortError` isolation.
 
 - [ ] T005 [P] [SHARE] Implement share orchestrator in `src/features/quiz/utils/shareScore.ts`:
-  - Level 1: `navigator.canShare({ files })` $\rightarrow$ `navigator.share({ title, text, url, files: [file] })`
-  - Level 2: `navigator.share({ title, text, url })` + programmatic image download
-  - Level 3: Programmatic PNG download (`<a download="sleepmaxx-score.png">`)
-  - Level 4: `navigator.clipboard.writeText` copy fallback
-  - Abort Handling: Catch `AbortError` and return clean `{ status: 'aborted' }` without throwing
-- [ ] T006 [P] [SHARE] Create comprehensive unit tests for share service in `src/features/quiz/utils/shareScore.test.ts` (test Level 1 native file share, Level 2 text share + download, Level 3 direct download, Level 4 clipboard copy, and `AbortError` graceful handling)
+  - Primary Native Share: `navigator.share({ title, text, files: [file] })` when `navigator.canShare?.({ files: [file] })` returns true
+  - Rejection of Automated Text-Only Web Share: Avoid omitting the visual scorecard or colliding with mobile download dialogs
+  - Explicit Download Fallback: Programmatic PNG download (`<a download="sleepmaxx-score.png">`) when file sharing is unavailable or encounters a technical error
+  - Companion Clipboard Text Copy: Attempt `navigator.clipboard.writeText` for share text/URL (distinctly documented and announced as text copy, never image)
+  - AbortError Isolation: Catch `AbortError` and return clean `{ status: 'aborted' }` with ZERO side-effects (no download, no clipboard, no error alert)
+  - Technical Error Handling: Attempt download fallback; log error diagnostic; announce recovery status if unrecoverable
+- [ ] T006 [P] [SHARE] Create comprehensive unit tests for share service in `src/features/quiz/utils/shareScore.test.ts` (test native file share, explicit download fallback, companion text clipboard copy, `AbortError` clean reset with zero side-effects, and technical error fallback)
 
 **Checkpoint**: Share orchestration verified across all platform capability scenarios.
 
@@ -47,25 +48,27 @@
 
 ## Phase 4: UI Integration & Accessible Feedback
 
-**Purpose**: Expose the "Share Score" action in `ResultScreen` with touch targets $\ge 52\text{px}$, visible keyboard focus, loading state, and transient status announcements.
+**Purpose**: Expose the "Share Score" action in `ResultScreen` using a native `<button type="button">` (omitting redundant `role="button"`), with touch targets $\ge 52\text{px}$, visible keyboard focus, `disabled` & `aria-busy` during processing, and `aria-live="polite"` status announcements.
 
-- [ ] T007 [SHARE] Integrate "Share Score" button in `src/features/quiz/components/ResultScreen.tsx`:
+- [ ] T007 [SHARE] Integrate native `<button type="button">` for "Share Score" in `src/features/quiz/components/ResultScreen.tsx`:
+  - Native HTML `<button type="button">` (strictly omitting redundant `role="button"`)
   - Primary CTA positioned above "Retake Quiz"
-  - Touch target min-height $52\text{px}$ with glowing accent styling
-  - States: `idle`, `loading` (`aria-busy="true"`), and transient `success` / `feedback` banner
-  - Keyboard navigation (Tab, Enter, Space) and `aria-live="polite"` feedback announcement
-- [ ] T008 [SHARE] Add integration tests for Share UI in `src/features/quiz/QuizContainer.test.tsx` (verify Share Score button render, loading state during generation, feedback on download/clipboard, and Retake Quiz persistence reset unchanged)
+  - Touch target min-height $52\text{px}$ with glowing accent styling and `:focus-visible` ring
+  - States: `idle`, `loading` (`disabled`, `aria-busy="true"`), and transient feedback
+  - Keyboard navigation (Tab, Enter, Space) and polite status announcements via sibling `<div role="status" aria-live="polite">`
+- [ ] T008 [SHARE] Add integration tests for Share UI in `src/features/quiz/QuizContainer.test.tsx` (verify native button rendering without redundant role, loading state during generation, `aria-live` announcements distinguishing download from clipboard, clean reset on abort, and Retake Quiz persistence reset unchanged)
 
 **Checkpoint**: End-to-end user flow from Result to Share Sheet / Download operational and tested.
 
 ---
 
-## Phase 5: Regression Gates & Final Validation
+## Phase 5: Performance Validation & Regression Gates
 
-**Purpose**: Ensure zero regression across the existing test suite, zero scoring engine drift, zero new dependencies, and verified production PWA build.
+**Purpose**: Ensure zero regression across the existing test suite, measure asset generation latency, confirm zero scoring engine drift, zero new dependencies, and verified production PWA build.
 
 - [ ] T009 [SHARE] Run automated verification suite: `npm test`, `npx tsc -b --noEmit`, `npm run lint`, and `npm run build`
 - [ ] T010 [SHARE] Verify PWA offline compatibility and responsive behavior across mobile viewports (375px, 390px, 430px) ensuring zero horizontal scroll and clean layout
+- [ ] T011 [SHARE] Validate asset generation latency via benchmark test (ensure Canvas rendering time is measured and verified to execute rapidly in memory to preserve user gesture context)
 
 ---
 
@@ -78,11 +81,13 @@ graph TD
     T001 --> T003
     T003 --> T005[T005: Share Orchestrator]
     T005 --> T006[T006: Share Tests]
-    T002 --> T007[T007: Share UI in ResultScreen]
+    T002 --> T007[T007: Native Share Button UI]
     T005 --> T007
     T007 --> T008[T008: UI Integration Tests]
     T004 --> T009[T009: Full Regression Gates]
     T006 --> T009
     T008 --> T009
     T009 --> T010[T010: PWA & Mobile Audit]
+    T004 --> T011[T011: Performance Latency Benchmark]
+    T011 --> T009
 ```

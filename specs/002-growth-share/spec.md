@@ -12,12 +12,16 @@ This specification defines the viral acquisition loop for **Sleepmaxx** as manda
 ```
 User takes quiz 
   → Receives deterministic score & archetype
-  → Taps "Share Score" on Result Screen
-  → Client-side engine generates a calibrated 9:16 vertical PNG card (1080×1920)
-  → Web Share API opens native mobile share sheet (TikTok, Instagram Stories, WhatsApp, Save Image)
-  → Fallback downloads PNG and copies share text/link to clipboard
+  → Taps native <button type="button"> "Share Score" on Result Screen
+  → Client-side engine renders a calibrated 9:16 vertical PNG card (1080×1920) in memory
+  → Path A: If Web Share Level 2 with files is supported:
+       Opens native mobile share sheet (Instagram Stories, TikTok, WhatsApp, Save Image)
+  → Path B: If native file share is unsupported or fails technically:
+       Directly downloads sleepmaxx-score.png and copies companion share text/link to clipboard
+  → If user cancels native share (AbortError):
+       Clean silent return to idle state (zero downloads, zero clipboard writes, zero alerts)
   → Shared card displays score, archetype, leak, and "sleepmaxx.app" watermark
-  → Viewers on social platforms discover the app via bio link / watermark
+  → Social viewers discover the app via bio link / watermark
 ```
 
 **Core Principle**: The share experience must remain 100% client-side, zero-cost, zero-backend, zero-dependency, and fully functional offline in PWA mode.
@@ -42,51 +46,64 @@ User takes quiz
 ## 3. User Scenarios & Acceptance Criteria
 
 ### User Scenario 1: Native Mobile Share via Instagram / TikTok Stories (Priority: P1)
-A Gen-Z user completes the quiz on mobile Safari (iOS) or mobile Chrome (Android), sees their "72 / RECOVERING" score, and taps "Share Score". The app instantly packages a crisp 9:16 story asset and triggers the native OS share sheet. The user selects Instagram Stories or saves the image to their camera roll without leaving the app.
+A Gen-Z user completes the quiz on mobile Safari (iOS) or mobile Chrome (Android), sees their "72 / RECOVERING" score, and taps "Share Score". The app generates a crisp 9:16 story asset in memory and triggers the native OS share sheet. The user selects Instagram Stories or saves the image to their camera roll without leaving the app.
 
 * **Acceptance Criteria**:
-  1. On `ResultScreen`, a prominent "Share Score" button is rendered above "Retake Quiz".
-  2. Tapping "Share Score" compiles the active `SleepmaxxResult` into a PNG image asset within `<50ms`.
-  3. When `navigator.canShare({ files })` is supported, `navigator.share` is invoked with the PNG `File` object, title, and pre-formatted text containing the score, archetype, and `sleepmaxx.app`.
-  4. If the user dismisses the native sheet (`AbortError`), the app resets cleanly to idle state without error alerts.
+  1. On `ResultScreen`, a native `<button type="button">` labeled "Share Score" is rendered as a primary action above "Retake Quiz".
+  2. Tapping "Share Score" compiles the active `SleepmaxxResult` into a PNG image asset directly in memory, targeting minimal latency to preserve the active user gesture.
+  3. When `navigator.share` and `navigator.canShare({ files: [file] })` return true, `navigator.share` is invoked with the PNG `File` object, title, and formatted summary text.
+  4. If the user dismisses or cancels the native sheet (`AbortError`), the app resets cleanly to idle state with zero error alerts, zero automatic downloads, and zero clipboard modifications.
 
 ### User Scenario 2: Desktop & Unsupported Browser Fallback (Priority: P1)
-A student completes the quiz on desktop Firefox or Chrome. Tapping "Share Score" triggers a dual fallback: the calibrated PNG image is automatically downloaded to their computer (`sleepmaxx-score.png`), and the promotional share text with link is copied to their clipboard with visible feedback ("Link copied to clipboard!").
+A user completes the quiz on a desktop browser (or any environment lacking Web Share Level 2 file sharing). Tapping "Share Score" triggers the explicit fallback: the calibrated PNG image is downloaded directly (`sleepmaxx-score.png`), and the companion promotional text with link is copied to their clipboard, with clear and separate accessibility announcements.
 
 * **Acceptance Criteria**:
-  1. When Web Share is unsupported or file sharing fails, the app automatically triggers a download of `sleepmaxx-score.png`.
-  2. The app writes the promotional text and link to the clipboard via `navigator.clipboard.writeText`.
-  3. A temporary feedback banner/toast confirms: "Image downloaded & link copied!".
+  1. When native file sharing is unsupported or unavailable, the application initiates an automatic download of `sleepmaxx-score.png` via programmatic link trigger.
+  2. The application copies the companion text and URL to the clipboard via `navigator.clipboard.writeText`.
+  3. A temporary feedback banner and screen reader live region announce: "ScoreCard image downloaded. Share link copied to clipboard." (explicitly distinguishing file download from text copying).
+  4. If clipboard write fails (e.g., focus lost or permissions denied), the image download still succeeds without throwing an unhandled exception.
 
-### User Scenario 3: Capture Boundary Isolation (Priority: P1)
-A user inspects the exported PNG image. The image contains only the visual score presentation (watermark, score, archetype, weakness, category breakdown, disclaimer). The action buttons ("Share Score", "Retake Quiz") are strictly excluded from the exported asset.
+### User Scenario 3: Technical Error Handling vs User Abort (Priority: P1)
+During a share attempt, an unexpected technical error occurs (e.g. browser gesture timeout `NotAllowedError` or canvas export failure).
 
 * **Acceptance Criteria**:
-  1. Zero UI control buttons appear in the generated image.
-  2. The interactive buttons in `ResultScreen` remain fully accessible to screen readers and keyboard navigation.
+  1. If `navigator.share` rejects with a technical error (non-`AbortError`), the system logs the error and attempts the explicit image download fallback.
+  2. If image generation itself fails, the app announces a clear recovery message via `aria-live`: "Unable to generate scorecard image. Please take a screenshot." and resets cleanly to idle.
+
+### User Scenario 4: Capture Boundary Isolation (Priority: P1)
+A user inspects the exported PNG image. The image contains strictly the visual score presentation (watermark, score, archetype, weakness, category breakdown, disclaimer). Application control buttons ("Share Score", "Retake Quiz") are strictly excluded from the exported asset.
+
+* **Acceptance Criteria**:
+  1. Zero UI control buttons appear in the generated image asset.
+  2. Interactive buttons in `ResultScreen` remain fully accessible to keyboard navigation and screen readers.
 
 ---
 
 ## 4. Functional Requirements
 
-* **FR-SHARE-001 (Share Trigger)**: `ResultScreen` MUST provide a dedicated primary CTA button labeled "Share Score" (touch target $\ge 52\text{px}$).
+* **FR-SHARE-001 (Share Trigger Contract)**: `ResultScreen` MUST provide a primary CTA button implemented as a native HTML `<button type="button">` labeled "Share Score". It MUST have a minimum touch target $\ge 52\text{px}$, visible keyboard focus styling, `disabled` state during processing, and MUST NOT specify a redundant `role="button"`.
 * **FR-SHARE-002 (Asset Specification)**: The generated asset MUST be a PNG image formatted at standard 9:16 vertical resolution ($1080 \times 1920\text{ px}$) with deep dark background (`#0B0F17`), high-contrast typography, and tier-colored glowing accents.
 * **FR-SHARE-003 (Watermark & Link)**: The exported asset MUST include the prominent domain watermark `sleepmaxx.app` and tagline `"Can you reach 90 in 7 days?"`.
-* **FR-SHARE-004 (Native Web Share)**: The share workflow MUST evaluate `navigator.canShare({ files: [file] })`. If truthy, it MUST pass a `File` object (`name: 'sleepmaxx-score.png'`, `type: 'image/png'`).
-* **FR-SHARE-005 (Graceful Abort Handling)**: A user closing the native share dialog without selecting a target MUST be handled transparently (ignoring `AbortError`) without showing failure states.
-* **FR-SHARE-006 (Download Fallback)**: If file sharing is unsupported or fails, the application MUST automatically download `sleepmaxx-score.png` via programmatic link trigger and `URL.createObjectURL`.
-* **FR-SHARE-007 (Clipboard Fallback)**: On desktop or when native sharing is unavailable, the application MUST copy the promotional text + URL via `navigator.clipboard.writeText` and display a transient success state.
-* **FR-SHARE-008 (Capture Boundary)**: Application controls (`Share Score`, `Retake Quiz`) MUST be rendered as sibling elements outside the capturable card surface.
-* **FR-SHARE-009 (Zero Scoring Changes)**: The share feature MUST consume `SleepmaxxResult` as read-only input. Under no circumstances may scoring weights, formulas, or sanitizers be modified.
+* **FR-SHARE-004 (Native Web Share with File)**: The share workflow MUST verify `navigator.share && navigator.canShare && navigator.canShare({ files: [file] })`. If true, it MUST invoke `navigator.share` passing a valid `File` object (`name: 'sleepmaxx-score.png'`, `type: 'image/png'`).
+* **FR-SHARE-005 (AbortError Isolation)**: A user dismissing the native share dialog (`error.name === 'AbortError'`) MUST result in an immediate, silent reset to `idle`. It MUST NOT trigger an automatic download, MUST NOT copy to clipboard, and MUST NOT display any error message.
+* **FR-SHARE-006 (Explicit Download Fallback)**: When native file sharing is unavailable or fails technically, the application MUST trigger a direct programmatic download of `sleepmaxx-score.png`.
+* **FR-SHARE-007 (Companion Clipboard Text Copy)**: When download fallback is triggered on desktop / non-file-sharing platforms, the application MUST attempt to copy promotional text and URL via `navigator.clipboard.writeText`. Under no circumstances may this be described to the user as copying the image.
+* **FR-SHARE-008 (Rejection of Text-Only Web Share Fallback)**: Automated fallback to text-only `navigator.share({ text, url })` without the image file is explicitly omitted because it suppresses the visual scorecard asset (the core viral deliverable) and conflicts with simultaneous file downloads on mobile operating systems.
+* **FR-SHARE-009 (Capture Boundary)**: Application controls (`Share Score`, `Retake Quiz`) MUST be rendered as sibling elements outside the visual card surface.
+* **FR-SHARE-010 (Zero Scoring Engine Drift)**: The share feature MUST consume `SleepmaxxResult` strictly as read-only data. Scoring weights, formulas, archetypes, and sanitizers in `src/core/` are immutable.
 
 ---
 
 ## 5. Non-Functional & Architectural Constraints
 
 * **CR-SHARE-001 (Zero Dependencies)**: No third-party rendering libraries (`html2canvas`, `html-to-image`, `dom-to-image`) may be installed. Asset generation must use native client-side HTML5 Canvas 2D API.
-* **CR-SHARE-002 (Transient User Activation)**: Image generation must complete in $<25\text{ms}$ to ensure the call to `navigator.share` occurs within the synchronous user-gesture window enforced by iOS Safari and Android Chrome.
-* **CR-SHARE-003 (Local-First & Offline)**: All generation and sharing fallbacks must function without an internet connection once the PWA assets are cached.
-* **CR-SHARE-004 (Accessibility)**: The "Share Score" button must support keyboard navigation (Tab, Enter, Space), have an explicit `aria-label`, and announce loading and feedback states via `aria-live`.
+* **CR-SHARE-002 (Transient User Activation & Performance Target)**: Asset generation is designed to run synchronously or near-instantaneously in memory without DOM layout passes. The validation target is ensuring generation completes rapidly enough to keep `navigator.share` inside the active user activation window, preventing `NotAllowedError`.
+* **CR-SHARE-003 (Local-First & Offline)**: All generation, downloading, and sharing logic must function without an active internet connection once PWA assets are cached.
+* **CR-SHARE-004 (Accessibility & ARIA Standards)**:
+  * Primary button: Native `<button type="button">` without redundant `role="button"`.
+  * Keyboard navigation: Fully operable via Tab, Enter, and Space keys with `:focus-visible` styling.
+  * State management: `disabled={isSharing}` and `aria-busy={isSharing}` during active rendering.
+  * Feedback: A sibling live region `<div role="status" aria-live="polite">` MUST announce operation status to assistive technologies.
 
 ---
 
@@ -94,7 +111,7 @@ A user inspects the exported PNG image. The image contains only the visual score
 
 The following features are **explicitly excluded** from this specification:
 * No server-side rendering (SSR) or Node-canvas microservice.
-* No direct TikTok or Instagram Graph API OAuth integration (sharing relies on native OS share sheet).
+* No direct TikTok or Instagram Graph API OAuth integration (sharing relies strictly on the native OS share sheet).
 * No image hosting, cloud uploads (S3/Cloudinary), or shortened URL redirects.
 * No analytics tracking SDKs or share event telemetry.
 * No payment gates or protocol paywalls.
