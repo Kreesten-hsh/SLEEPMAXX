@@ -7,21 +7,60 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
+# Dependencies & Build Outputs
+node_modules/
+dist/
+dist-ssr/
 *.local
 
-# Editor directories and files
+# Environment & Sensitive Credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+*.crt
+*.pfx
+*.p12
+secrets/
+credentials*.json
+service-account*.json
+
+# Internal & Sensitive Documentation
+docs/
+*.private.md
+*.personal.md
+*.secret.md
+notes/
+personal/
+private/
+scratch/
+
+# Coverage & Profiling
+coverage/
+.nyc_output/
+
+# Editor & IDE Directories
 .vscode/*
 !.vscode/extensions.json
-.idea
+.idea/
 .DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+*.bak
+*.tmp
+*~
+.history/
 
-# Knowledge graph and intelligence artifacts
+# AI Agent & Assistant Local State
+.claude/
+.gemini/
+.cursor/
+.supermaven/
+
+# Knowledge Graph and Intelligence Artifacts
 graphify-out/
