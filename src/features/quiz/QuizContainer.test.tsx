@@ -25,6 +25,39 @@ vi.mock('./utils/shareScore', () => ({
   DOWNLOAD_FAILED_MESSAGE: 'Unable to download scorecard image.',
 }));
 
+let testHooksDispatcher: {
+  useState: (initial: unknown) => [unknown, (val: unknown) => void];
+  useRef: (initial: unknown) => { current: unknown };
+} | null = null;
+
+vi.mock('react', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react')>();
+  const mockedUseState = ((initial: unknown) => {
+    if (testHooksDispatcher) {
+      return testHooksDispatcher.useState(initial);
+    }
+    return actual.useState(initial);
+  }) as typeof actual.useState;
+
+  const mockedUseRef = ((initial: unknown) => {
+    if (testHooksDispatcher) {
+      return testHooksDispatcher.useRef(initial);
+    }
+    return actual.useRef(initial);
+  }) as typeof actual.useRef;
+
+  return {
+    ...actual,
+    default: {
+      ...actual,
+      useState: mockedUseState,
+      useRef: mockedUseRef,
+    },
+    useState: mockedUseState,
+    useRef: mockedUseRef,
+  };
+});
+
 describe('User Story 1: End-to-End Quiz Journey Integration', () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -1033,45 +1066,37 @@ describe('User Story 3: In-Session Resilience & Refresh Handling Integration', (
       let hookIndex = 0;
       let currentTree: React.ReactElement | null = null;
 
-      const testDispatcher = {
-        useState: (initial: unknown) => {
-          const idx = hookIndex++;
-          if (hooks[idx] === undefined) {
-            hooks[idx] = typeof initial === 'function' ? (initial as () => unknown)() : initial;
-          }
-          const setState = (nextVal: unknown) => {
-            hooks[idx] =
-              typeof nextVal === 'function'
-                ? (nextVal as (prev: unknown) => unknown)(hooks[idx])
-                : nextVal;
-            render();
-          };
-          return [hooks[idx], setState];
-        },
-        useRef: (initial: unknown) => {
-          const idx = hookIndex++;
-          if (hooks[idx] === undefined) {
-            hooks[idx] = { current: initial };
-          }
-          return hooks[idx];
-        },
-      };
-
       function render(): React.ReactElement {
-        const ReactInternals = (React as unknown as {
-          __CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE: {
-            H: unknown;
-          };
-        }).__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
-
-        const prevDispatcher = ReactInternals.H;
-        ReactInternals.H = testDispatcher;
         hookIndex = 0;
+        testHooksDispatcher = {
+          useState: (initial: unknown) => {
+            const idx = hookIndex++;
+            if (hooks[idx] === undefined) {
+              hooks[idx] = typeof initial === 'function' ? (initial as () => unknown)() : initial;
+            }
+            const setState = (nextVal: unknown) => {
+              hooks[idx] =
+                typeof nextVal === 'function'
+                  ? (nextVal as (prev: unknown) => unknown)(hooks[idx])
+                  : nextVal;
+              render();
+            };
+            return [hooks[idx], setState];
+          },
+          useRef: (initial: unknown) => {
+            const idx = hookIndex++;
+            if (hooks[idx] === undefined) {
+              hooks[idx] = { current: initial };
+            }
+            return hooks[idx] as { current: unknown };
+          },
+        };
+
         try {
           currentTree = (ResultScreen as (p: typeof props) => React.ReactElement)(props);
           return currentTree;
         } finally {
-          ReactInternals.H = prevDispatcher;
+          testHooksDispatcher = null;
         }
       }
 
