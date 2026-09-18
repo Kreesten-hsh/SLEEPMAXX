@@ -28,7 +28,6 @@ credentials*.json
 service-account*.json
 
 # Internal & Sensitive Documentation
-docs/
 *.private.md
 *.personal.md
 *.secret.md
