@@ -33,14 +33,14 @@
 
 **Purpose**: Build the share service implementing Web Share API with File, direct PNG download fallback, separate companion clipboard text copy, and strict `AbortError` isolation.
 
-- [ ] T005 [P] [SHARE] Implement share orchestrator in `src/features/quiz/utils/shareScore.ts`:
+- [x] T005 [P] [SHARE] Implement share orchestrator in `src/features/quiz/utils/shareScore.ts`:
   - Primary Native Share: `navigator.share({ title, text, files: [file] })` when `navigator.canShare?.({ files: [file] })` returns true
   - Rejection of Automated Text-Only Web Share: Avoid omitting the visual scorecard or colliding with mobile download dialogs
   - Explicit Download Fallback: Programmatic PNG download (`<a download="sleepmaxx-score.png">`) when file sharing is unavailable or encounters a technical error
   - Companion Clipboard Text Copy: Attempt `navigator.clipboard.writeText` for share text/URL (distinctly documented and announced as text copy, never image)
   - AbortError Isolation: Catch `AbortError` and return clean `{ status: 'aborted' }` with ZERO side-effects (no download, no clipboard, no error alert)
   - Technical Error Handling: Attempt download fallback; log error diagnostic; announce recovery status if unrecoverable
-- [ ] T006 [P] [SHARE] Create comprehensive unit tests for share service in `src/features/quiz/utils/shareScore.test.ts` (test native file share, explicit download fallback, companion text clipboard copy, `AbortError` clean reset with zero side-effects, and technical error fallback)
+- [x] T006 [P] [SHARE] Create comprehensive unit tests for share service in `src/features/quiz/utils/shareScore.test.ts` (test native file share, explicit download fallback, companion text clipboard copy, `AbortError` clean reset with zero side-effects, and technical error fallback)
 
 **Checkpoint**: Share orchestration verified across all platform capability scenarios.
 
