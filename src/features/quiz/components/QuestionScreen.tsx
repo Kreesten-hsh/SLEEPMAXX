@@ -10,6 +10,7 @@ export interface QuestionScreenProps {
   readonly progressPercentage: number;
   readonly onAnswer: (value: QuizAnswers[keyof QuizAnswers]) => void;
   readonly onBack?: () => void;
+  readonly selectedAnswer?: QuizAnswers[keyof QuizAnswers];
 }
 
 export const QuestionScreen: React.FC<QuestionScreenProps> = ({
@@ -17,14 +18,29 @@ export const QuestionScreen: React.FC<QuestionScreenProps> = ({
   progressPercentage,
   onAnswer,
   onBack,
+  selectedAnswer,
 }) => {
-  const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
+  // Pure derivation of pre-selected option ID from a previously recorded answer
+  const deriveSelectedOptionId = useCallback(
+    (answer: QuizAnswers[keyof QuizAnswers] | undefined): string | null => {
+      if (answer === undefined) return null;
+      const match = question.options.find(
+        (opt) => opt.normalizedValue === answer
+      );
+      return match?.id ?? null;
+    },
+    [question.options]
+  );
+
+  const [selectedOptionId, setSelectedOptionId] = useState<string | null>(
+    () => deriveSelectedOptionId(selectedAnswer)
+  );
   const isTransitioningRef = useRef<boolean>(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Reset local state and timer when question changes
+  // Sync visual state when question or selectedAnswer changes (client-side navigation)
   useEffect(() => {
-    setSelectedOptionId(null);
+    setSelectedOptionId(deriveSelectedOptionId(selectedAnswer));
     isTransitioningRef.current = false;
 
     return () => {
@@ -33,7 +49,7 @@ export const QuestionScreen: React.FC<QuestionScreenProps> = ({
         timerRef.current = null;
       }
     };
-  }, [question.id]);
+  }, [question.id, selectedAnswer, deriveSelectedOptionId]);
 
   const handleSelect = useCallback(
     (option: QuizOptionItem<QuizAnswers[keyof QuizAnswers]>) => {

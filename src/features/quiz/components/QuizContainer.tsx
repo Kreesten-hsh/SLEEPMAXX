@@ -25,12 +25,16 @@ export const QuizContainer: React.FC<QuizContainerProps> = ({ storageAdapter }) 
   }
 
   if (state.step === 'question' && currentQuestion) {
+    // Derive previously recorded answer for pre-selection on back navigation
+    const previousAnswer = state.answers[currentQuestion.answerKey];
+
     return (
       <QuestionScreen
         question={currentQuestion}
         progressPercentage={progressPercentage}
         onAnswer={answerCurrentQuestion}
         onBack={goToPreviousQuestion}
+        selectedAnswer={previousAnswer}
       />
     );
   }
