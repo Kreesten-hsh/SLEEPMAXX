@@ -59,6 +59,7 @@ describe('shareScore: Defensive Share Orchestrator (T005–T006)', () => {
   let removeChildSpy: ReturnType<typeof vi.fn<(child: Node) => void>>;
   let createdAnchor: HTMLAnchorElement;
   let currentParent: ParentNode | null;
+  let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     shareSpy = vi.fn().mockResolvedValue(undefined);
@@ -68,6 +69,7 @@ describe('shareScore: Defensive Share Orchestrator (T005–T006)', () => {
     revokeObjectURLSpy = vi.fn();
     anchorClickSpy = vi.fn();
     removeChildSpy = vi.fn();
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     currentParent = null;
 
     // Mock DOM anchor
@@ -216,7 +218,7 @@ describe('shareScore: Defensive Share Orchestrator (T005–T006)', () => {
       expect(fileArg.type).toBe('image/png');
     });
 
-    it('does NOT trigger download fallback or clipboard write on native success', async () => {
+    it('does NOT trigger download fallback, clipboard write, or diagnostic on native success', async () => {
       const mockFile = createSamplePngFile();
       const mockGenerate = vi.fn().mockResolvedValue(mockFile);
 
@@ -227,6 +229,7 @@ describe('shareScore: Defensive Share Orchestrator (T005–T006)', () => {
       expect(createObjectURLSpy).not.toHaveBeenCalled();
       expect(anchorClickSpy).not.toHaveBeenCalled();
       expect(writeTextSpy).not.toHaveBeenCalled();
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
     });
 
     it('integrates with default generateScoreCardImage when using generatorOptions canvas', async () => {
@@ -366,6 +369,20 @@ describe('shareScore: Defensive Share Orchestrator (T005–T006)', () => {
       expect(anchorClickSpy).toHaveBeenCalledTimes(1);
       expect(writeTextSpy).toHaveBeenCalledTimes(1);
     });
+
+    it('does not log native technical-share diagnostic when native file sharing is unsupported', async () => {
+      canShareSpy.mockReturnValue(false);
+
+      const mockFile = createSamplePngFile();
+      const mockGenerate = vi.fn().mockResolvedValue(mockFile);
+
+      const result = await shareSleepmaxxScore(createSampleResult(), {
+        generateImage: mockGenerate,
+      });
+
+      expect(result.status).toBe('downloaded');
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
+    });
   });
 
   describe('AbortError Isolation Contract', () => {
@@ -388,12 +405,13 @@ describe('shareScore: Defensive Share Orchestrator (T005–T006)', () => {
       expect(createObjectURLSpy).not.toHaveBeenCalled();
       expect(anchorClickSpy).not.toHaveBeenCalled();
       expect(writeTextSpy).not.toHaveBeenCalled();
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
       expect(shareSpy).toHaveBeenCalledTimes(1); // No second share attempt
     });
   });
 
   describe('Technical Native Share Error Handling', () => {
-    it('attempts download fallback and companion clipboard copy when native share rejects with non-Abort error', async () => {
+    it('attempts download fallback, companion clipboard copy, and logs diagnostic when native share rejects with non-Abort error', async () => {
       const technicalError = new Error('User gesture expired.');
       technicalError.name = 'NotAllowedError';
       shareSpy.mockRejectedValue(technicalError);
@@ -410,9 +428,14 @@ describe('shareScore: Defensive Share Orchestrator (T005–T006)', () => {
       expect(createObjectURLSpy).toHaveBeenCalledTimes(1);
       expect(anchorClickSpy).toHaveBeenCalledTimes(1);
       expect(writeTextSpy).toHaveBeenCalledTimes(1);
+      expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('[shareScore] Native file share failed'),
+        technicalError
+      );
     });
 
-    it('preserves successful download status (downloaded_text_failed) if clipboard fails after technical share rejection', async () => {
+    it('preserves successful download status (downloaded_text_failed) and logs diagnostic if clipboard fails after technical share rejection', async () => {
       const technicalError = new Error('Web Share backend internal failure.');
       shareSpy.mockRejectedValue(technicalError);
       writeTextSpy.mockRejectedValue(new Error('Permission denied'));
@@ -427,6 +450,11 @@ describe('shareScore: Defensive Share Orchestrator (T005–T006)', () => {
       expect(result.status).toBe('downloaded_text_failed');
       expect(anchorClickSpy).toHaveBeenCalledTimes(1);
       expect(writeTextSpy).toHaveBeenCalledTimes(1);
+      expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('[shareScore] Native file share failed'),
+        technicalError
+      );
     });
   });
 
@@ -447,6 +475,7 @@ describe('shareScore: Defensive Share Orchestrator (T005–T006)', () => {
       expect(createObjectURLSpy).not.toHaveBeenCalled();
       expect(anchorClickSpy).not.toHaveBeenCalled();
       expect(writeTextSpy).not.toHaveBeenCalled();
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
     });
   });
 

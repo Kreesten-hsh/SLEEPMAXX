@@ -203,6 +203,12 @@ export async function shareSleepmaxxScore(
           file: imageFile,
         };
       }
+      if (typeof console !== 'undefined' && typeof console.error === 'function') {
+        console.error(
+          '[shareScore] Native file share failed, falling back to image download:',
+          shareError
+        );
+      }
       // Non-abort technical error: proceed to download fallback without retrying text-only share
     }
   }
