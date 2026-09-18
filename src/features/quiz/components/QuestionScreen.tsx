@@ -35,21 +35,33 @@ export const QuestionScreen: React.FC<QuestionScreenProps> = ({
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(
     () => deriveSelectedOptionId(selectedAnswer)
   );
+  const [isTransitioning, setIsTransitioning] = useState<boolean>(false);
   const isTransitioningRef = useRef<boolean>(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const optionRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
-  // Sync visual state when question or selectedAnswer changes (client-side navigation)
-  useEffect(() => {
+  // Synchronize state during render when question or selectedAnswer changes without cascading effect
+  const [syncedKey, setSyncedKey] = useState({
+    questionId: question.id,
+    answer: selectedAnswer,
+  });
+
+  if (syncedKey.questionId !== question.id || syncedKey.answer !== selectedAnswer) {
+    setSyncedKey({ questionId: question.id, answer: selectedAnswer });
     setSelectedOptionId(deriveSelectedOptionId(selectedAnswer));
-    isTransitioningRef.current = false;
+    setIsTransitioning(false);
+  }
 
+  // Reset transition ref and cleanup pending timers on question/answer change or unmount
+  useEffect(() => {
+    isTransitioningRef.current = false;
     return () => {
       if (timerRef.current !== null) {
         clearTimeout(timerRef.current);
         timerRef.current = null;
       }
     };
-  }, [question.id, selectedAnswer, deriveSelectedOptionId]);
+  }, [question.id, selectedAnswer]);
 
   const handleSelect = useCallback(
     (option: QuizOptionItem<QuizAnswers[keyof QuizAnswers]>) => {
@@ -57,6 +69,7 @@ export const QuestionScreen: React.FC<QuestionScreenProps> = ({
       if (isTransitioningRef.current) return;
 
       isTransitioningRef.current = true;
+      setIsTransitioning(true);
       setSelectedOptionId(option.id);
 
       timerRef.current = setTimeout(() => {
@@ -66,13 +79,36 @@ export const QuestionScreen: React.FC<QuestionScreenProps> = ({
     [onAnswer]
   );
 
+  const handleKeyDown = useCallback(
+    (
+      e: React.KeyboardEvent<HTMLButtonElement>,
+      index: number,
+      option: QuizOptionItem<QuizAnswers[keyof QuizAnswers]>
+    ) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        handleSelect(option);
+      } else if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        const nextIndex = (index + 1) % question.options.length;
+        optionRefs.current[nextIndex]?.focus();
+      } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        const prevIndex = (index - 1 + question.options.length) % question.options.length;
+        optionRefs.current[prevIndex]?.focus();
+      }
+    },
+    [handleSelect, question.options.length]
+  );
+
   return (
-    <div
+    <main
       className="question-screen"
       style={{
         display: 'flex',
         flexDirection: 'column',
         flex: 1,
+        width: '100%',
         padding: 'var(--space-md) 0 var(--space-xl) 0',
       }}
     >
@@ -90,16 +126,18 @@ export const QuestionScreen: React.FC<QuestionScreenProps> = ({
             type="button"
             onClick={onBack}
             aria-label="Previous question"
-            disabled={isTransitioningRef.current}
+            disabled={isTransitioning}
             style={{
               background: 'transparent',
               color: 'var(--text-secondary)',
-              padding: '0 var(--space-xs)',
-              minHeight: '40px',
-              fontSize: '1rem',
+              minHeight: 'var(--touch-target-min)',
+              minWidth: 'var(--touch-target-min)',
+              fontSize: '1.25rem',
               display: 'flex',
               alignItems: 'center',
-              cursor: 'pointer',
+              justifyContent: 'center',
+              borderRadius: 'var(--radius-md)',
+              cursor: isTransitioning ? 'default' : 'pointer',
             }}
           >
             ←
@@ -118,7 +156,7 @@ export const QuestionScreen: React.FC<QuestionScreenProps> = ({
         <h2
           id={`question-title-${question.id}`}
           style={{
-            fontSize: '1.375rem',
+            fontSize: 'clamp(1.125rem, 4vw, 1.375rem)',
             fontWeight: 700,
             lineHeight: 1.3,
             color: 'var(--text-primary)',
@@ -150,17 +188,22 @@ export const QuestionScreen: React.FC<QuestionScreenProps> = ({
           gap: 'var(--space-sm)',
         }}
       >
-        {question.options.map((option) => {
+        {question.options.map((option, index) => {
           const isSelected = selectedOptionId === option.id;
 
           return (
             <button
               key={option.id}
+              ref={(el) => {
+                optionRefs.current[index] = el;
+              }}
               type="button"
               role="radio"
               aria-checked={isSelected}
-              disabled={isTransitioningRef.current && !isSelected}
+              tabIndex={0}
+              disabled={isTransitioning && !isSelected}
               onClick={() => handleSelect(option)}
+              onKeyDown={(e) => handleKeyDown(e, index, option)}
               style={{
                 width: '100%',
                 minHeight: 'var(--touch-target-min)',
@@ -180,7 +223,7 @@ export const QuestionScreen: React.FC<QuestionScreenProps> = ({
                 borderRadius: 'var(--radius-md)',
                 color: isSelected ? '#FFFFFF' : 'var(--text-primary)',
                 transition: 'all 0.12s ease-in-out',
-                cursor: isTransitioningRef.current ? 'default' : 'pointer',
+                cursor: isTransitioning ? 'default' : 'pointer',
               }}
             >
               <span
@@ -207,6 +250,6 @@ export const QuestionScreen: React.FC<QuestionScreenProps> = ({
           );
         })}
       </div>
-    </div>
+    </main>
   );
 };

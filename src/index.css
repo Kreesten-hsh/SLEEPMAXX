@@ -59,17 +59,19 @@ html, body {
   -moz-osx-font-smoothing: grayscale;
   min-height: 100dvh;
   min-height: 100vh;
+  overflow-x: hidden;
 }
 
 #root {
   max-width: var(--container-max-width);
+  width: 100%;
   margin: 0 auto;
   min-height: 100dvh;
   min-height: 100vh;
-  padding-top: env(safe-area-inset-top, 0px);
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-  padding-left: var(--space-md);
-  padding-right: var(--space-md);
+  padding-top: max(var(--space-md), env(safe-area-inset-top, 0px));
+  padding-bottom: max(var(--space-md), env(safe-area-inset-bottom, 0px));
+  padding-left: max(var(--space-md), env(safe-area-inset-left, 0px));
+  padding-right: max(var(--space-md), env(safe-area-inset-right, 0px));
   display: flex;
   flex-direction: column;
 }
@@ -82,4 +84,39 @@ button {
   border-radius: var(--radius-md);
   transition: all 0.15s ease-in-out;
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* Accessible focus ring for keyboard navigation */
+button:focus-visible,
+[role="radio"]:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.35);
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Responsive adjustments for compact mobile viewports (<= 390px: iPhone SE, iPhone 12/13 mini) */
+@media (max-width: 390px) {
+  :root {
+    --space-md: 0.875rem;
+    --space-lg: 1.25rem;
+    --space-xl: 1.5rem;
+    --space-2xl: 2rem;
+  }
+
+  .brand-watermark {
+    font-size: 0.75rem !important;
+  }
 }

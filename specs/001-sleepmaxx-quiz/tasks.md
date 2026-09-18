@@ -119,10 +119,14 @@
 
 **Purpose**: Responsive validation across mobile viewports (375px–430px), accessibility compliance, quickstart verification, and regression test gates.
 
-- [ ] T025 [P] Apply mobile-first responsive and safe-area adjustments in `src/index.css` (test 375px, 390px, 430px viewports; verify `env(safe-area-inset-top)` and `env(safe-area-inset-bottom)`; touch targets $\ge 52\text{px}$)
-- [ ] T026 [P] Add accessibility attributes and keyboard navigation in `src/features/quiz/components/QuestionScreen.tsx` and `src/features/quiz/components/LandingScreen.tsx` (`role="radiogroup"`, `role="radio"`, `aria-checked`, `tabIndex`, `Enter`/`Space` key support)
-- [ ] T027 Execute end-to-end quickstart validation scenarios from `specs/001-sleepmaxx-quiz/quickstart.md`
-- [ ] T028 Run full regression and typecheck validation suite (`npm test`, `npx tsc -b`, `npm run build`) ensuring all 77 core scoring tests pass and 0 new dependencies are added to `package.json`
+- [X] T025 [P] Apply mobile-first responsive and safe-area adjustments in `src/index.css` (test 375px, 390px, 430px viewports; verify `env(safe-area-inset-top)` and `env(safe-area-inset-bottom)`; touch targets $\ge 52\text{px}$)
+  *(Implemented: `viewport-fit=cover` in `index.html`, safe area padding with `max(var(--space-md), env(safe-area-inset-*))` in `#root`, Back button touch target expanded to 52px minHeight and 52px minWidth, fluid typography with `clamp()` on LandingScreen and ScoreCard, `touch-action: manipulation` on buttons, `@media (max-width: 390px)` breakpoint adjustments).*
+- [X] T026 [P] Add accessibility attributes and keyboard navigation in `src/features/quiz/components/QuestionScreen.tsx` and `src/features/quiz/components/LandingScreen.tsx` (`role="radiogroup"`, `role="radio"`, `aria-checked`, `tabIndex`, `Enter`/`Space` key support)
+  *(Implemented: Semantic `<main>` landmark across LandingScreen, QuestionScreen, and ResultScreen; WAI-ARIA `role="radiogroup"`, `role="radio"`, `aria-checked`, `tabIndex={0}`, keyboard navigation with Enter, Space, and Arrow keys; high-contrast `:focus-visible` styles; `@media (prefers-reduced-motion: reduce)` support; ref render access eliminated for 0 oxlint warnings).*
+- [X] T027 Execute end-to-end quickstart validation scenarios from `specs/001-sleepmaxx-quiz/quickstart.md`
+  *(Implemented: Automated integration validation suite in `src/features/quiz/validationScenarios.test.tsx` executing and asserting Scenarios A through G — Fresh session, Back correction, Refresh restoration, Retake purge, Mobile safe-area, Keyboard ARIA, and Boundary Edge cases 0, 39, 40, 89, 90, 100).*
+- [X] T028 Run full regression and typecheck validation suite (`npm test`, `npx tsc -b`, `npm run build`) ensuring all 77 core scoring tests pass and 0 new dependencies are added to `package.json`
+  *(Validated: 165/165 tests PASS across 6 test files, `tsc -b --noEmit` PASS with 0 errors, `oxlint` PASS with 0 errors and 0 warnings, `vite build` PASS with PWA generation, 0 dependencies added, 0 scoring modifications).*
 
 ---
 

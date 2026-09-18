@@ -6,7 +6,7 @@ export interface LandingScreenProps {
 
 export const LandingScreen: React.FC<LandingScreenProps> = ({ onStart }) => {
   return (
-    <div
+    <main
       className="landing-screen"
       style={{
         display: 'flex',
@@ -15,6 +15,7 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({ onStart }) => {
         justifyContent: 'center',
         textAlign: 'center',
         flex: 1,
+        width: '100%',
         padding: 'var(--space-xl) 0',
       }}
     >
@@ -38,11 +39,12 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({ onStart }) => {
 
       <h1
         style={{
-          fontSize: '2.25rem',
+          fontSize: 'clamp(1.75rem, 5vw, 2.25rem)',
           fontWeight: 800,
           lineHeight: 1.15,
           marginBottom: 'var(--space-md)',
           letterSpacing: '-0.02em',
+          maxWidth: '380px',
         }}
       >
         Discover your <span style={{ color: 'var(--accent-primary)' }}>Sleepmaxx Score</span>.
@@ -50,7 +52,7 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({ onStart }) => {
 
       <p
         style={{
-          fontSize: '1.125rem',
+          fontSize: 'clamp(0.9375rem, 2.5vw, 1.125rem)',
           color: 'var(--text-secondary)',
           lineHeight: 1.5,
           marginBottom: 'var(--space-lg)',
@@ -64,6 +66,8 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({ onStart }) => {
         className="features-summary"
         style={{
           display: 'flex',
+          flexWrap: 'wrap',
+          justifyContent: 'center',
           gap: 'var(--space-sm)',
           marginBottom: 'var(--space-2xl)',
           fontSize: '0.8125rem',
@@ -80,6 +84,7 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({ onStart }) => {
       <button
         type="button"
         onClick={onStart}
+        aria-label="Start Quiz"
         style={{
           width: '100%',
           maxWidth: '360px',
@@ -94,6 +99,6 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({ onStart }) => {
       >
         Start Quiz
       </button>
-    </div>
+    </main>
   );
 };

@@ -10,7 +10,7 @@ export interface ResultScreenProps {
 
 export const ResultScreen: React.FC<ResultScreenProps> = ({ result, onRetake }) => {
   return (
-    <div
+    <main
       className="result-screen"
       style={{
         display: 'flex',
@@ -22,6 +22,6 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({ result, onRetake }) 
       }}
     >
       <ScoreCard result={result} onRetake={onRetake} />
-    </div>
+    </main>
   );
 };

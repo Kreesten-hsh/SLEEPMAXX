@@ -74,7 +74,7 @@ export const ScoreCard = React.forwardRef<HTMLDivElement, ScoreCardProps>(
             className="score-number"
             data-testid="score-value"
             style={{
-              fontSize: '4.5rem',
+              fontSize: 'clamp(3.5rem, 14vw, 4.5rem)',
               fontWeight: 900,
               lineHeight: 1,
               color: scoreColor,

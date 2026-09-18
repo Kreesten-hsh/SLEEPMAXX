@@ -856,4 +856,120 @@ describe('User Story 3: In-Session Resilience & Refresh Handling Integration', (
       expect(state.answers.sleepDurationHours).toBe(8.0);
     });
   });
+
+  describe('Phase 7: Polish, Responsive & Accessibility Verification (T025, T026)', () => {
+    describe('T025: Responsive Mobile-First & Touch Targets', () => {
+      it('renders semantic <main> landmark on all primary screens', () => {
+        const landingHtml = renderToStaticMarkup(<LandingScreen onStart={() => {}} />);
+        expect(landingHtml).toMatch(/^<main[^>]*class="landing-screen"/);
+
+        const questionHtml = renderToStaticMarkup(
+          <QuestionScreen
+            question={QUESTIONS[0]}
+            progressPercentage={20}
+            onAnswer={() => {}}
+            onBack={() => {}}
+          />
+        );
+        expect(questionHtml).toMatch(/^<main[^>]*class="question-screen"/);
+
+        const perfectAnswers: QuizAnswers = {
+          sleepDurationHours: 8.0,
+          weekendShiftHours: 0.0,
+          hoursSinceLastCaffeineBeforeBed: null,
+          screenMinutesInBed: 0,
+          morningLightFrequency: 'almost_always',
+        };
+        const result = calculateSleepmaxxScore(perfectAnswers);
+        const resultHtml = renderToStaticMarkup(<ResultScreen result={result} onRetake={() => {}} />);
+        expect(resultHtml).toMatch(/^<main[^>]*class="result-screen"/);
+      });
+
+      it('guarantees touch targets >= 52px for all primary interactive controls', () => {
+        const landingHtml = renderToStaticMarkup(<LandingScreen onStart={() => {}} />);
+        expect(landingHtml).toContain('min-height:var(--touch-target-min)');
+
+        const questionHtml = renderToStaticMarkup(
+          <QuestionScreen
+            question={QUESTIONS[1]}
+            progressPercentage={40}
+            onAnswer={() => {}}
+            onBack={() => {}}
+          />
+        );
+        // Back button must have touch-target-min for both height and width
+        expect(questionHtml).toContain('aria-label="Previous question"');
+        expect(questionHtml).toContain('min-height:var(--touch-target-min)');
+        expect(questionHtml).toContain('min-width:var(--touch-target-min)');
+
+        // Option cards must have min-height touch target
+        for (const opt of QUESTIONS[1].options) {
+          expect(questionHtml).toContain(opt.label);
+        }
+
+        const perfectAnswers: QuizAnswers = {
+          sleepDurationHours: 8.0,
+          weekendShiftHours: 0.0,
+          hoursSinceLastCaffeineBeforeBed: null,
+          screenMinutesInBed: 0,
+          morningLightFrequency: 'almost_always',
+        };
+        const result = calculateSleepmaxxScore(perfectAnswers);
+        const resultHtml = renderToStaticMarkup(<ResultScreen result={result} onRetake={() => {}} />);
+        expect(resultHtml).toContain('min-height:var(--touch-target-min)');
+      });
+    });
+
+    describe('T026: Accessibility & Keyboard Navigation', () => {
+      it('renders WAI-ARIA radiogroup and radio items with accessible states', () => {
+        const q = QUESTIONS[0];
+        const html = renderToStaticMarkup(
+          <QuestionScreen
+            question={q}
+            progressPercentage={20}
+            onAnswer={() => {}}
+            selectedAnswer={8.0}
+          />
+        );
+
+        // Radiogroup container
+        expect(html).toContain('role="radiogroup"');
+        expect(html).toContain(`aria-labelledby="question-title-${q.id}"`);
+
+        // Radio items
+        expect(html).toContain('role="radio"');
+        expect(html).toContain('tabindex="0"');
+
+        // Pre-selected option has aria-checked="true", others have "false"
+        expect(html).toContain('aria-checked="true"');
+        expect(html).toContain('aria-checked="false"');
+      });
+
+      it('includes accessible labels on all actionable controls', () => {
+        const landingHtml = renderToStaticMarkup(<LandingScreen onStart={() => {}} />);
+        expect(landingHtml).toContain('aria-label="Start Quiz"');
+
+        const questionHtml = renderToStaticMarkup(
+          <QuestionScreen
+            question={QUESTIONS[2]}
+            progressPercentage={60}
+            onAnswer={() => {}}
+            onBack={() => {}}
+          />
+        );
+        expect(questionHtml).toContain('aria-label="Previous question"');
+      });
+
+      it('progress bar exposes valid ARIA progressbar semantics', () => {
+        const html = renderToStaticMarkup(
+          <ProgressBar currentStep={2} totalSteps={5} progressPercentage={40} />
+        );
+        expect(html).toContain('role="progressbar"');
+        expect(html).toContain('aria-valuenow="40"');
+        expect(html).toContain('aria-valuemin="0"');
+        expect(html).toContain('aria-valuemax="100"');
+        expect(html).toContain('aria-label="Question 2 of 5"');
+      });
+    });
+  });
 });
