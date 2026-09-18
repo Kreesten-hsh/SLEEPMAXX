@@ -251,7 +251,7 @@ describe('T027: Manual & Comprehensive Validation Scenarios (A through G)', () =
       // Options
       expect(questionHtml).toContain('min-height:var(--touch-target-min)');
 
-      // ScoreCard retake button
+      // ResultScreen retake button
       const answers: QuizAnswers = {
         sleepDurationHours: 8.0,
         weekendShiftHours: 0.0,
@@ -260,8 +260,12 @@ describe('T027: Manual & Comprehensive Validation Scenarios (A through G)', () =
         morningLightFrequency: 'almost_always',
       };
       const result = calculateSleepmaxxScore(answers);
-      const scoreCardHtml = renderToStaticMarkup(<ScoreCard result={result} onRetake={() => {}} />);
-      expect(scoreCardHtml).toContain('min-height:var(--touch-target-min)');
+      const resultHtml = renderToStaticMarkup(<ResultScreen result={result} onRetake={() => {}} />);
+      expect(resultHtml).toContain('min-height:var(--touch-target-min)');
+
+      // Visual ScoreCard contains zero buttons
+      const scoreCardHtml = renderToStaticMarkup(<ScoreCard result={result} />);
+      expect(scoreCardHtml).not.toContain('<button');
     });
   });
 

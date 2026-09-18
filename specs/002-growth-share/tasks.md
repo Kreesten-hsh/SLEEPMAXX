@@ -11,8 +11,8 @@
 
 **Purpose**: Separate the visual scorecard surface from application action controls to ensure generated assets contain zero interactive UI buttons.
 
-- [ ] T001 [P] [SHARE] Refactor `src/features/quiz/components/ScoreCard.tsx` to be a pure visual card: remove internal interactive `onRetake` button, enrich `brand-watermark` with `sleepmaxx.app` URL, and preserve `forwardRef` on the card surface
-- [ ] T002 [P] [SHARE] Update `src/features/quiz/components/ResultScreen.tsx` to host application action buttons (`Retake Quiz` and placeholder for `Share Score`) as sibling controls outside `<ScoreCard />`, and update `ScoreCard.test.tsx` to verify isolation
+- [x] T001 [P] [SHARE] Refactor `src/features/quiz/components/ScoreCard.tsx` to be a pure visual card: remove internal interactive `onRetake` button, enrich `brand-watermark` with `sleepmaxx.app` URL, and preserve `forwardRef` on the card surface
+- [x] T002 [P] [SHARE] Update `src/features/quiz/components/ResultScreen.tsx` to host application action buttons (`Retake Quiz` and placeholder for `Share Score`) as sibling controls outside `<ScoreCard />`, and update `ScoreCard.test.tsx` to verify isolation
 
 **Checkpoint**: Pure visual surface isolated. `ResultScreen` handles actions. Existing 165 tests continue to pass.
 

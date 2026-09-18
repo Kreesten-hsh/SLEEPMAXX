@@ -211,15 +211,36 @@ describe('User Story 4: ScoreCard Component & ResultScreen Integration (T022–T
       expect(state).toEqual(INITIAL_QUIZ_STATE);
     });
 
-    it('ScoreCard renders Retake button only when onRetake prop is provided', () => {
-      const withoutRetake = renderToStaticMarkup(<ScoreCard result={sampleResult} />);
-      expect(withoutRetake).not.toContain('Retake Quiz');
+    it('ScoreCard is a pure visual presentation surface with zero interactive button elements', () => {
+      const html = renderToStaticMarkup(<ScoreCard result={sampleResult} />);
+      expect(html).not.toContain('<button');
+      expect(html).not.toContain('Retake Quiz');
+      expect(html).toContain('class="scorecard-container"');
+    });
 
+    it('ResultScreen renders ScoreCard as the visual asset and hosts Retake button in an external sibling container', () => {
       const onRetake = vi.fn();
-      const withRetake = renderToStaticMarkup(
-        <ScoreCard result={sampleResult} onRetake={onRetake} />
+      const html = renderToStaticMarkup(
+        <ResultScreen result={sampleResult} onRetake={onRetake} />
       );
-      expect(withRetake).toContain('Retake Quiz');
+
+      // Verify ScoreCard container is present
+      expect(html).toContain('class="scorecard-container"');
+
+      // Verify actions container is a sibling outside scorecard-container
+      expect(html).toContain('class="result-actions"');
+      expect(html).toContain('data-testid="result-actions"');
+
+      // Verify Retake Quiz button is rendered in the result-actions container
+      expect(html).toContain('class="retake-quiz-btn"');
+      expect(html).toContain('data-testid="retake-quiz-btn"');
+      expect(html).toContain('Retake Quiz');
+
+      // Verify that the button is rendered after the closing of the scorecard container
+      const scorecardEndIndex = html.indexOf('</div><div class="result-actions"');
+      expect(scorecardEndIndex).toBeGreaterThan(0);
+      const retakeButtonIndex = html.indexOf('Retake Quiz');
+      expect(retakeButtonIndex).toBeGreaterThan(scorecardEndIndex);
     });
   });
 

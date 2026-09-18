@@ -3,7 +3,6 @@ import type { SleepmaxxResult, CategoryResult } from '../types';
 
 export interface ScoreCardProps {
   readonly result: SleepmaxxResult;
-  readonly onRetake?: () => void;
   readonly testId?: string;
 }
 
@@ -16,7 +15,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 export const ScoreCard = React.forwardRef<HTMLDivElement, ScoreCardProps>(
-  ({ result, onRetake, testId }, ref) => {
+  ({ result, testId }, ref) => {
     const isHighScorer = result.totalScore >= 75;
     const isMidScorer = result.totalScore >= 60 && result.totalScore < 75;
     const scoreColor = isHighScorer
@@ -51,7 +50,7 @@ export const ScoreCard = React.forwardRef<HTMLDivElement, ScoreCardProps>(
             textAlign: 'center',
           }}
         >
-          Sleepmaxx Routine Score
+          Sleepmaxx Routine Score • sleepmaxx.app
         </div>
 
         <div
@@ -225,33 +224,12 @@ export const ScoreCard = React.forwardRef<HTMLDivElement, ScoreCardProps>(
             color: 'var(--text-muted)',
             lineHeight: 1.4,
             textAlign: 'center',
-            marginBottom: onRetake ? 'var(--space-xl)' : '0',
+            marginBottom: '0',
             maxWidth: '380px',
           }}
         >
           Non-Medical Wellness Notice: Sleepmaxx is a gamified routine evaluator based on self-declared habits. It does not measure clinical sleep stages, hormones, or provide medical diagnoses.
         </p>
-
-        {onRetake && (
-          <button
-            type="button"
-            onClick={onRetake}
-            className="scorecard-retake-btn"
-            style={{
-              width: '100%',
-              maxWidth: '360px',
-              minHeight: 'var(--touch-target-min)',
-              backgroundColor: 'transparent',
-              color: 'var(--text-secondary)',
-              border: '1px solid var(--border-strong)',
-              fontSize: '1rem',
-              fontWeight: 600,
-              borderRadius: 'var(--radius-md)',
-            }}
-          >
-            Retake Quiz
-          </button>
-        )}
       </div>
     );
   }
