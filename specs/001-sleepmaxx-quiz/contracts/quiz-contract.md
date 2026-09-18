@@ -63,8 +63,23 @@ export interface UseQuizStateReturn {
   readonly currentQuestion: QuizQuestion | null;
   readonly progressPercentage: number; // 0 on landing, 20-100 on questions, 100 on result
   readonly startQuiz: () => void;
+  /**
+   * Registers selected answer, visually highlights the option for ~150ms,
+   * then auto-advances to the next question (or Result).
+   * Gates rapid multi-taps during transition. No "Next" button needed.
+   */
   readonly answerCurrentQuestion: (value: QuizAnswers[keyof QuizAnswers]) => void;
+  /**
+   * 100% in-app back navigation.
+   * If on Q2-Q5, decrements questionIndex and preserves prior answer.
+   * If on Q1 (index 0), transitions back to 'landing'.
+   * Zero window.history or popstate manipulation.
+   */
   readonly goToPreviousQuestion: () => void;
+  /**
+   * Full reset: empties answers, deletes result, clears localStorage session,
+   * resets state machine, and returns to 'landing' (Result → Retake → Landing).
+   */
   readonly retakeQuiz: () => void;
 }
 ```

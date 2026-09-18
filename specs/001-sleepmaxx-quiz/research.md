@@ -55,13 +55,16 @@
 
 ---
 
-### Decision 5: Funnel Navigation (Back / Next / Rapid-Tap / Refresh)
+### Decision 5: Funnel Navigation (Auto-Advance, 100% In-App Back, Retake Reset)
 * **Decision**:
-  * **Next**: Advance on option select with a 150ms debounce/gate to give tactile visual feedback and prevent accidental multi-step skipping.
-  * **Back**: Explicit top-left back button. On questions 1–4, decrements `questionIndex` and preserves previously selected value. On question 0, returns to `landing`. Hidden on `result`.
+  * **Auto-Advance (Option A)**: On option tap, the selected option is immediately highlighted, held for ~150ms for tactile feedback, and automatically triggers the transition to the next step. No "Next" button is present. Rapid multi-taps during the 150ms window are strictly debounced/gated.
+  * **In-App Back Navigation (Option A)**: In-app top-left back button handles question navigation (Q2–Q5 $\rightarrow$ previous question with previous answer preserved; Q1 $\rightarrow$ returns to landing). 100% in-app state management. No `window.history.pushState`, no `popstate`, no React Router, no new dependencies. The browser retains its default behavior. No pseudo-router.
+  * **Retake Quiz (Option A)**: Tapping "Retake Quiz" from Result completely resets the state machine, empties answers, deletes the result, purges the persisted `localStorage` session, and returns to `landing` (`Result → Retake → Landing → Start Quiz → Question 1`).
   * **Refresh**: On initial load, state initializes from storage. If completed, directly displays `result`. If mid-quiz, resumes on current question.
 * **Alternatives Considered**:
-  * *Browser History (`history.pushState`)*: Kept minimal. Can be synchronized simply with state transitions so hardware back gestures match in-app back buttons.
+  * *Manual "Next" button*: Rejected. Adds friction and an extra tap per question, degrading completion velocity for a 5-question mobile viral quiz.
+  * *Browser History (`history.pushState` / `popstate` / router)*: Rejected for V1. Introduces edge-case bugs and unnecessary routing complexity. Standard in-app back button is predictable, clean, and 100% zero-dependency.
+  * *Retake restarting directly at Question 1 without clearing*: Rejected. Users retaking should see the fresh landing screen with a fully purged session.
 
 ---
 

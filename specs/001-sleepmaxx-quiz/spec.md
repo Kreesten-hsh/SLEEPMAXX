@@ -29,9 +29,8 @@ This is the core acquisition engine and primary viral hook of Sleepmaxx. Without
 Can be fully tested by launching the landing view, advancing through 5 questions with valid selections, and asserting that the resulting screen displays the exact score (0–100), archetype name, and primary weakness matching the pure scoring engine calculation.
 
 **Acceptance Scenarios**:
-1. **Given** a user is on the landing screen, **When** they tap "Start Quiz" (or primary call to action), **Then** Question 1 (Sleep Duration) is displayed with a clear progress indicator showing Step 1 of 5.
-2. **Given** a user is on Question 1 through Question 5, **When** they tap a selectable option, **Then** the selection is registered and the interface advances to the next question.
-3. **Given** a user has answered Question 5 (Morning Light), **When** the final question is submitted, **Then** the application normalizes all answers into the scoring contract, invokes the scoring engine, and transitions to the Result Screen displaying the overall score (0–100), archetype label (e.g., "ZOMBIE"), category breakdown, and biggest weakness.
+1. **Given** a user is on the landing screen, **When** they tap "Start Quiz" (or primary call to action), **Then** Question 1 (Sleep Duration) is displayed with a clear progress indicator showing Step 1 of  2. **Given** a user is on Question 1 through Question 5, **When** they tap a selectable option, **Then** the option passes immediately into selected state, remains highlighted for ~150ms for tactile feedback, and automatically transitions to the next question (or Result on Q5) without requiring any "Next" button. Rapid multi-taps are gated/debounced to prevent multiple transitions.
+3. **Given** a user has answered Question 5 (Morning Light), **When** the final question option is tapped and the 150ms auto-advance fires, **Then** the application normalizes all answers into the scoring contract, invokes the scoring engine, and transitions to the Result Screen displaying the overall score (0–100), archetype label (e.g., "ZOMBIE"), category breakdown, and biggest weakness.
 4. **Given** a user is viewing their score on the Result Screen, **Then** no paywall, payment request, or account registration form blocks access to the score or archetype.
 
 ---
@@ -44,12 +43,12 @@ A user filling out the questionnaire realizes they selected the wrong caffeine c
 High friction or inability to correct mistakes leads to drop-offs or corrupted assessments, degrading user trust in the score.
 
 **Independent Test**:
-Advance to Question 3, tap "Back", alter Question 2 selection, advance forward again, complete the quiz, and verify that the final score reflects the updated answer.
+Advance to Question 3, tap in-app "Back", alter Question 2 selection, auto-advance forward again, complete the quiz, and verify that the final score reflects the updated answer.
 
 **Acceptance Scenarios**:
-1. **Given** a user is on Question 2, 3, 4, or 5, **When** they tap the "Back" control, **Then** the interface transitions safely to the previous question with their previously chosen selection pre-selected.
-2. **Given** a user is on Question 1, **When** viewing the interface, **Then** the "Back" control either safely returns to the landing screen or is disabled, preventing invalid negative navigation states.
-3. **Given** a user modifies a previous question's answer, **When** they re-advance to later questions, **Then** previously entered downstream answers are retained unless logically invalidated.
+1. **Given** a user is on Question 2, 3, 4, or 5, **When** they tap the in-app "Back" button, **Then** the interface transitions safely to the previous question with their previously chosen selection pre-selected.
+2. **Given** a user is on Question 1, **When** viewing the interface, **Then** the in-app "Back" button safely returns to the landing screen, preventing invalid negative navigation states.
+3. **Given** a user modifies a previous question's answer, **When** they re-advance via auto-advance to later questions, **Then** previously entered downstream answers are retained.
 
 ---
 
@@ -66,7 +65,7 @@ Answer Questions 1 and 2, refresh the browser page, and verify the user resumes 
 **Acceptance Scenarios**:
 1. **Given** an active quiz session with answers recorded for steps 1 and 2, **When** the browser window is refreshed, **Then** the session state is restored from local storage and the user remains at the current step with previous answers preserved.
 2. **Given** a user has reached the Result Screen, **When** the browser is refreshed, **Then** the calculated result remains visible without forcing the user to re-take the questionnaire from scratch.
-3. **Given** a user on the Result Screen taps "Retake Quiz", **When** confirmed, **Then** previous answers are cleared and the questionnaire restarts cleanly from Question 1.
+3. **Given** a user on the Result Screen taps "Retake Quiz", **When** tapped, **Then** all recorded answers are emptied, the calculated result is removed, the persisted session in localStorage is completely purged, the state machine resets, and the interface returns to the Landing screen (Flow: `Result → Retake → Landing → Start Quiz → Question 1`).
 
 ---
 
@@ -93,10 +92,10 @@ Inspect the Result view at mobile dimensions (375px–430px) and verify that the
 ### Edge Cases
 
 * **EC-001 (Zero Caffeine Path)**: User selects "I don't drink caffeine". The system must cleanly map this to `hoursSinceLastCaffeineBeforeBed = null`, awarding the full 20 points without throwing runtime null reference errors.
-* **EC-002 (Skipping / Incomplete Steps)**: User attempts to advance to the next step without choosing an option. The system must prevent forward progression until a valid selection is made.
-* **EC-003 (Browser Back Button vs. In-App Back)**: User triggers the browser's hardware/gesture back button. The internal history/state must synchronize with the router or step state so that the browser does not unexpectedly exit the web app.
-* **EC-004 (Rapid Multi-Tap)**: User taps an option multiple times in rapid succession. The interaction must be debounced or gated so that multiple question steps are not inadvertently skipped.
-* **EC-005 (Corrupted Local Storage)**: If local storage contains partial or corrupted session data on startup, the system must gracefully discard the corrupt record and initialize a clean landing state without crashing.
+* **EC-002 (Skipping / Incomplete Steps)**: The questionnaire requires an option tap to proceed via auto-advance. Forward progression without a selection is impossible because there is no separate "Next" button.
+* **EC-003 (In-App Back Navigation & Browser Back)**: Navigation between questions is 100% in-app via the Quiz Back button. No `window.history.pushState`, `popstate`, or custom router is introduced in V1. The browser retains its default behavior, and in-app navigation is handled strictly via internal state.
+* **EC-004 (Rapid Multi-Tap with Auto-Advance)**: User taps an option or options multiple times in rapid succession. The interaction is debounced/gated so that rapid multi-taps during the 150ms auto-advance window do not cause multiple question skips or race conditions.
+* **EC-005 (Corrupted Local Storage)**: If local storage contains partial or corrupted session data on startup, the system must gracefully discard the corrupt record and initialize a clean landing state without crashing.hout crashing.
 
 ---
 
@@ -147,7 +146,7 @@ Inspect the Result view at mobile dimensions (375px–430px) and verify that the
   * Primary Weakness category name and point deduction
   * Category breakdown accordion or card list
   * Non-medical wellness disclaimer
-* **FR-013 (Retake Capability)**: The Result view MUST provide a clear "Retake Quiz" option allowing the user to reset their session and start fresh.
+* **FR-013 (Retake Capability)**: The Result view MUST provide a clear "Retake Quiz" option that empties answers, deletes the result, completely purges the persisted session from `localStorage`, resets the state machine, and returns the user to the Landing screen (`Result → Retake → Landing → Start Quiz → Question 1`).
 * **FR-014 (Session Persistence)**: In-progress quiz answers and final score results MUST be persisted to client-side `localStorage` to survive page reloads.
 
 ---

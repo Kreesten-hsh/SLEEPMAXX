@@ -17,13 +17,13 @@
 1. **Launch App**: Open the application root (`npm run dev`).
 2. **Landing Verification**:
    * Confirm "Sleepmaxx" header, core promise ("Discover your Sleepmaxx Score. Can you reach 90 in 7 days?"), and "Start Quiz" button.
-3. **Question Progression**:
-   * Click "Start Quiz" $\rightarrow$ verify Question 1 (Duration) appears with "Question 1 of 5".
-   * Select `7 – 8.9 hours` $\rightarrow$ verify automatic or smooth transition to Question 2.
-   * Select `No shift (Same bedtime)` $\rightarrow$ advances to Question 3.
-   * Select `8+ hours before bed` $\rightarrow$ advances to Question 4.
-   * Select `0 minutes (No screens in bed)` $\rightarrow$ advances to Question 5.
-   * Select `Almost Always` $\rightarrow$ advances to Result view.
+3. **Question Progression (Auto-Advance)**:
+   * Click "Start Quiz" $\rightarrow$ verify Question 1 (Duration) appears with progress indicator "Question 1 of 5".
+   * Select `7 – 8.9 hours` $\rightarrow$ option highlights immediately; after ~150ms auto-advances to Question 2 without a "Next" button.
+   * Select `No shift (Same bedtime)` $\rightarrow$ highlights and auto-advances to Question 3.
+   * Select `8+ hours before bed` $\rightarrow$ highlights and auto-advances to Question 4.
+   * Select `0 minutes (No screens in bed)` $\rightarrow$ highlights and auto-advances to Question 5.
+   * Select `Almost Always` $\rightarrow$ highlights and auto-advances to Result view.
 4. **Result Verification**:
    * Verify score displays `100 / 100`.
    * Verify archetype displays `ELITE`.
@@ -35,8 +35,8 @@
 ### Scenario 2: Navigation & Correction Verification
 1. Start quiz from Landing.
 2. On Question 1, select `< 5 hours`.
-3. On Question 2, tap "Back" button $\rightarrow$ verify user returns to Question 1 with `< 5 hours` selected.
-4. Change selection to `7 – 8.9 hours` $\rightarrow$ advance forward to Question 2.
+3. On Question 2, tap the in-app "Back" button $\rightarrow$ verify user returns to Question 1 with `< 5 hours` selected.
+4. Change selection to `7 – 8.9 hours` $\rightarrow$ option highlights and auto-advances forward to Question 2.
 5. Complete remaining questions with max-score selections.
 6. Verify final score reflects the updated Question 1 selection (score `100`, not `65`).
 
@@ -54,7 +54,8 @@
 
 ### Scenario 4: Retake Quiz Reset
 1. On the Result screen, click the "Retake Quiz" button.
-2. Verify state resets to Landing (or Question 1), local storage session is cleared, and answering anew produces fresh calculations.
+2. Verify state resets to Landing, local storage session `sleepmaxx_quiz_session_v1` is completely purged, answers and result are nullified.
+3. On Landing, click "Start Quiz" $\rightarrow$ verify questionnaire starts fresh from Question 1 with no prior selections.
 
 ---
 

@@ -161,3 +161,16 @@ stateDiagram-v2
 3. **No Scoring Calculation in State Machine**: The reducer invokes `calculateSleepmaxxScore(answers as QuizAnswers)` strictly as a pure transformer on the final step.
 4. **Storage Corruption Tolerance**:
    * If stored data has invalid version, missing fields, or malformed types, `loadSessionFromStorage()` discards the corrupted entry and returns `null`.
+5. **Auto-Advance & Multi-Tap Guard**:
+   * Tapping an option immediately sets visual selection state.
+   * A ~150ms visual feedback delay elapses before transitioning to the next step (or computing the result on Q5).
+   * Rapid taps during the ~150ms window are gated to prevent multiple step transitions.
+   * No "Next" button is present.
+6. **100% In-App Back Navigation**:
+   * On Q1 (index 0), `PREVIOUS_QUESTION` returns to `landing`.
+   * On Q2–Q5 (index 1–4), `PREVIOUS_QUESTION` decrements `questionIndex` and preserves previously selected options.
+   * No `window.history.pushState`, `popstate`, or external routing libraries are used.
+7. **Full Retake Reset**:
+   * `RETAKE_QUIZ` resets state to `{ step: 'landing', questionIndex: 0, answers: {}, result: null }`.
+   * `clearSession()` removes `sleepmaxx_quiz_session_v1` from `localStorage`.
+   * Flow: `Result → Retake → Landing → Start Quiz → Question 1`.

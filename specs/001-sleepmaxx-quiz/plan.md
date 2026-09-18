@@ -53,7 +53,7 @@ Implements Phase 1 of the Sleepmaxx product: the mobile-first, 5-question routin
     result: SleepmaxxResult | null;
   }
   ```
-* **Actions**: `START_QUIZ`, `ANSWER_QUESTION`, `PREVIOUS_QUESTION`, `RETAKE_QUIZ`, `RESTORE_SESSION`.
+* **Actions**: `START_QUIZ`, `ANSWER_QUESTION`, `PREVIOUS_QUESTION`, `RETAKE_QUIZ` (clears answers, deletes result, purges localStorage session, returns to landing), `RESTORE_SESSION`.
 
 ### 2. Location of Types
 * **Core Scoring Contract**: Stays in [`src/core/scoringEngine.ts`](file:///home/hasashi/Bureau/SLEEPMAXX/src/core/scoringEngine.ts) (`QuizAnswers`, `SleepmaxxResult`, etc.).
@@ -72,10 +72,22 @@ Implements Phase 1 of the Sleepmaxx product: the mobile-first, 5-question routin
 * Isolated storage adapter: `src/features/quiz/storage.ts`.
 * Key: `sleepmaxx_quiz_session_v1`.
 * Versioned payload with defensive validation: corrupted or outdated sessions are cleanly discarded with fallback to initial state. All calls wrapped in `try/catch`.
+* Complete purge: `clearSession()` explicitly removes the key from `localStorage`.
 
-### 5. Back / Next / Refresh Navigation
-* **Next**: Option tap records answer and advances `questionIndex` with a 150ms tactile feedback gate.
-* **Back**: In-app button on questions 1–4 decrements `questionIndex` and preserves chosen state. On question 0, returns to Landing. Disabled on Result.
+### 5. In-App Navigation (Auto-Advance, Back & Refresh)
+* **Auto-Advance (Option A)**:
+  * User taps an option $\rightarrow$ passes immediately into selected visual state.
+  * Option remains visually highlighted for ~150ms for tactile feedback.
+  * Question automatically transitions to next question (or Result on Q5).
+  * No "Next" button is required or displayed.
+  * Multi-tap gating: Rapid taps during the 150ms transition window are ignored/debounced to prevent multiple question skips.
+* **In-App Back Navigation (Option A)**:
+  * Navigation is 100% in-app via the Quiz Back button on questions 1–4 (decrements `questionIndex`, restores previously selected answer). On question 0 (Q1), returns to `landing`.
+  * Zero `window.history.pushState`, zero `popstate`, zero React Router, zero new dependencies.
+  * Browser back gesture is NOT intercepted or synchronized in V1; the browser retains its standard behavior. No pseudo-router.
+* **Retake Flow (Option A)**:
+  * Tapping "Retake Quiz" from Result executes a full reset: empties recorded answers, deletes result, purges persisted session in `localStorage`, resets state machine to initial state, and returns to `landing`.
+  * Flow: `Result → Retake → Landing → Start Quiz → Question 1`.
 * **Refresh**: State initializes from `storage.loadSession()`. Re-renders active question or completed result without data loss.
 
 ### 6. Landing $\rightarrow$ Quiz $\rightarrow$ Result Structure
