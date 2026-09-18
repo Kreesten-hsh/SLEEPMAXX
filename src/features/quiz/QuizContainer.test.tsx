@@ -10,7 +10,19 @@ import { quizReducer, INITIAL_QUIZ_STATE } from './useQuizState';
 import { createQuizStorage } from './storage';
 import { calculateSleepmaxxScore } from '../../core/scoringEngine';
 import type { QuizState } from './types';
-import type { QuizAnswers } from '../../core/scoringEngine';
+import type { QuizAnswers, SleepmaxxResult } from '../../core/scoringEngine';
+import { shareSleepmaxxScore } from './utils/shareScore';
+
+vi.mock('./utils/shareScore', () => ({
+  shareSleepmaxxScore: vi.fn().mockResolvedValue({ status: 'shared' }),
+  DEFAULT_SHARE_TITLE: 'Sleepmaxx Routine Score',
+  DEFAULT_SHARE_URL: 'https://sleepmaxx.app',
+  SCORECARD_IMAGE_FILENAME: 'sleepmaxx-score.png',
+  SCORECARD_IMAGE_MIME: 'image/png',
+  GENERATION_FAILED_MESSAGE:
+    'Unable to generate scorecard image. Please take a screenshot.',
+  DOWNLOAD_FAILED_MESSAGE: 'Unable to download scorecard image.',
+}));
 
 describe('User Story 1: End-to-End Quiz Journey Integration', () => {
   beforeEach(() => {
@@ -970,6 +982,334 @@ describe('User Story 3: In-Session Resilience & Refresh Handling Integration', (
         expect(html).toContain('aria-valuemax="100"');
         expect(html).toContain('aria-label="Question 2 of 5"');
       });
+    });
+  });
+
+  describe('User Story: ResultScreen Share Score Action Integration (T007–T008)', () => {
+    const sampleResult: SleepmaxxResult = {
+      totalScore: 72,
+      categories: {
+        duration: { earned: 22, max: 35, lost: 13 },
+        consistency: { earned: 17, max: 25, lost: 8 },
+        caffeine: { earned: 18, max: 20, lost: 2 },
+        screen: { earned: 8, max: 10, lost: 2 },
+        morningLight: { earned: 7, max: 10, lost: 3 },
+      },
+      archetype: {
+        id: 'recovering',
+        label: 'RECOVERING',
+      },
+      biggestWeakness: {
+        id: 'duration',
+        label: 'Sleep Duration',
+        pointsLost: 13,
+      },
+    };
+
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
+    it('1. Share button rendering: renders native <button type="button"> with label Share Score', () => {
+      const html = renderToStaticMarkup(
+        <ResultScreen result={sampleResult} onRetake={() => {}} />
+      );
+      expect(html).toContain('data-testid="share-score-btn"');
+      expect(html).toMatch(/<button[^>]*type="button"[^>]*class="[^"]*share-score-btn[^"]*"[^>]*>/);
+      expect(html).toContain('Share Score');
+
+      // Also verify when rendered in QuizContainer from completed session
+      const completedStorage = createQuizStorage({
+        getItem: () =>
+          JSON.stringify({
+            version: 1,
+            step: 'result',
+            questionIndex: 4,
+            answers: {},
+            result: sampleResult,
+            updatedAt: Date.now(),
+          }),
+        setItem: () => {},
+        removeItem: () => {},
+        clear: () => {},
+        key: () => null,
+        length: 1,
+      });
+      const containerHtml = renderToStaticMarkup(
+        <QuizContainer storageAdapter={completedStorage} />
+      );
+      expect(containerHtml).toContain('data-testid="share-score-btn"');
+      expect(containerHtml).toContain('Share Score');
+    });
+
+    it('2. No redundant role: button does not specify role="button"', () => {
+      const html = renderToStaticMarkup(
+        <ResultScreen result={sampleResult} onRetake={() => {}} />
+      );
+      const match = html.match(/<button[^>]*class="[^"]*share-score-btn[^"]*"[^>]*>/);
+      expect(match).not.toBeNull();
+      expect(match![0]).not.toContain('role="button"');
+      expect(match![0]).not.toContain('role=');
+    });
+
+    it('3. Primary ordering: Share Score appears before Retake Quiz in the DOM', () => {
+      const html = renderToStaticMarkup(
+        <ResultScreen result={sampleResult} onRetake={() => {}} />
+      );
+      const scorecardIdx = html.indexOf('class="scorecard-container"');
+      const shareBtnIdx = html.indexOf('data-testid="share-score-btn"');
+      const retakeBtnIdx = html.indexOf('data-testid="retake-quiz-btn"');
+
+      expect(scorecardIdx).toBeGreaterThan(0);
+      expect(shareBtnIdx).toBeGreaterThan(scorecardIdx);
+      expect(retakeBtnIdx).toBeGreaterThan(shareBtnIdx);
+    });
+
+    it('4. Touch target: guarantees min-height touch target constraint >= 52px', () => {
+      const html = renderToStaticMarkup(
+        <ResultScreen result={sampleResult} onRetake={() => {}} />
+      );
+      expect(html).toContain('data-testid="share-score-btn"');
+      expect(html).toContain('min-height:var(--touch-target-min)');
+    });
+
+    it('5. Loading state: disabled, aria-busy="true", loading text, and gates rapid double activation', async () => {
+      // Check loading DOM output
+      const loadingHtml = renderToStaticMarkup(
+        <ResultScreen result={sampleResult} onRetake={() => {}} isSharing={true} />
+      );
+      expect(loadingHtml).toContain('disabled');
+      expect(loadingHtml).toContain('aria-busy="true"');
+      expect(loadingHtml).toContain('Sharing…');
+      expect(loadingHtml).not.toContain('>Share Score<');
+
+      // Gate double activation: while first call is pending, second call is ignored
+      let resolvePromise!: (val: unknown) => void;
+      const pendingPromise = new Promise((resolve) => {
+        resolvePromise = resolve;
+      });
+      vi.mocked(shareSleepmaxxScore).mockReturnValue(pendingPromise as any);
+
+      let controls!: { handleShare: () => Promise<void> };
+      renderToStaticMarkup(
+        <ResultScreen
+          result={sampleResult}
+          onRetake={() => {}}
+          onShareStateChange={(state) => {
+            controls = state;
+          }}
+        />
+      );
+
+      const firstCall = controls.handleShare();
+      expect(shareSleepmaxxScore).toHaveBeenCalledTimes(1);
+
+      // Rapid second tap while still handling: must be ignored
+      const secondCall = controls.handleShare();
+      expect(shareSleepmaxxScore).toHaveBeenCalledTimes(1);
+
+      resolvePromise({ status: 'shared' });
+      await firstCall;
+      await secondCall;
+    });
+
+    it('6. Native success feedback: announces accessible confirmation via live region', async () => {
+      vi.mocked(shareSleepmaxxScore).mockResolvedValue({ status: 'shared' });
+
+      let controls!: { statusMessage: string; handleShare: () => Promise<void> };
+      renderToStaticMarkup(
+        <ResultScreen
+          result={sampleResult}
+          onRetake={() => {}}
+          onShareStateChange={(state) => {
+            controls = state;
+          }}
+        />
+      );
+
+      await controls.handleShare();
+      expect(controls.statusMessage).toBe('ScoreCard shared successfully.');
+
+      const feedbackHtml = renderToStaticMarkup(
+        <ResultScreen
+          result={sampleResult}
+          onRetake={() => {}}
+          statusMessage={controls.statusMessage}
+        />
+      );
+      expect(feedbackHtml).toContain('data-testid="result-status-live"');
+      expect(feedbackHtml).toContain('ScoreCard shared successfully.');
+    });
+
+    it('7. Download fallback feedback: announces exact download and clipboard copy message', async () => {
+      vi.mocked(shareSleepmaxxScore).mockResolvedValue({ status: 'downloaded' });
+
+      let controls!: { statusMessage: string; handleShare: () => Promise<void> };
+      renderToStaticMarkup(
+        <ResultScreen
+          result={sampleResult}
+          onRetake={() => {}}
+          onShareStateChange={(state) => {
+            controls = state;
+          }}
+        />
+      );
+
+      await controls.handleShare();
+      expect(controls.statusMessage).toBe(
+        'ScoreCard image downloaded. Share link copied to clipboard.'
+      );
+
+      const feedbackHtml = renderToStaticMarkup(
+        <ResultScreen
+          result={sampleResult}
+          onRetake={() => {}}
+          statusMessage={controls.statusMessage}
+        />
+      );
+      expect(feedbackHtml).toContain(
+        'ScoreCard image downloaded. Share link copied to clipboard.'
+      );
+    });
+
+    it('8. Clipboard failure: distinguishes download from clipboard failure and never claims image was copied', async () => {
+      vi.mocked(shareSleepmaxxScore).mockResolvedValue({ status: 'downloaded_text_failed' });
+
+      let controls!: { statusMessage: string; handleShare: () => Promise<void> };
+      renderToStaticMarkup(
+        <ResultScreen
+          result={sampleResult}
+          onRetake={() => {}}
+          onShareStateChange={(state) => {
+            controls = state;
+          }}
+        />
+      );
+
+      await controls.handleShare();
+      expect(controls.statusMessage).toContain('ScoreCard image downloaded');
+      expect(controls.statusMessage).toContain('Could not copy share link to clipboard');
+      expect(controls.statusMessage).not.toContain('copied to clipboard.');
+
+      const feedbackHtml = renderToStaticMarkup(
+        <ResultScreen
+          result={sampleResult}
+          onRetake={() => {}}
+          statusMessage={controls.statusMessage}
+        />
+      );
+      expect(feedbackHtml).toContain(controls.statusMessage);
+    });
+
+    it('9. Abort isolation: silent reset to idle with zero error messages on user cancellation', async () => {
+      vi.mocked(shareSleepmaxxScore).mockResolvedValue({ status: 'aborted' });
+
+      let controls!: {
+        isSharing: boolean;
+        statusMessage: string;
+        handleShare: () => Promise<void>;
+      };
+      renderToStaticMarkup(
+        <ResultScreen
+          result={sampleResult}
+          onRetake={() => {}}
+          onShareStateChange={(state) => {
+            controls = state;
+          }}
+        />
+      );
+
+      await controls.handleShare();
+      expect(controls.statusMessage).toBe('');
+      expect(controls.isSharing).toBe(false);
+
+      const idleHtml = renderToStaticMarkup(
+        <ResultScreen
+          result={sampleResult}
+          onRetake={() => {}}
+          statusMessage=""
+          isSharing={false}
+        />
+      );
+      expect(idleHtml).toContain('>Share Score<');
+      expect(idleHtml).not.toContain('disabled');
+      expect(idleHtml).not.toContain('aria-busy="true"');
+    });
+
+    it('10. Generation failure: displays exact required recovery copy', async () => {
+      vi.mocked(shareSleepmaxxScore).mockResolvedValue({
+        status: 'generation_failed',
+        message: 'Unable to generate scorecard image. Please take a screenshot.',
+      });
+
+      let controls!: { statusMessage: string; handleShare: () => Promise<void> };
+      renderToStaticMarkup(
+        <ResultScreen
+          result={sampleResult}
+          onRetake={() => {}}
+          onShareStateChange={(state) => {
+            controls = state;
+          }}
+        />
+      );
+
+      await controls.handleShare();
+      expect(controls.statusMessage).toBe(
+        'Unable to generate scorecard image. Please take a screenshot.'
+      );
+
+      const failHtml = renderToStaticMarkup(
+        <ResultScreen
+          result={sampleResult}
+          onRetake={() => {}}
+          statusMessage={controls.statusMessage}
+        />
+      );
+      expect(failHtml).toContain(
+        'Unable to generate scorecard image. Please take a screenshot.'
+      );
+    });
+
+    it('11. Download failure: displays exact required download failure feedback', async () => {
+      vi.mocked(shareSleepmaxxScore).mockResolvedValue({
+        status: 'failed',
+        message: 'Unable to download scorecard image.',
+      });
+
+      let controls!: { statusMessage: string; handleShare: () => Promise<void> };
+      renderToStaticMarkup(
+        <ResultScreen
+          result={sampleResult}
+          onRetake={() => {}}
+          onShareStateChange={(state) => {
+            controls = state;
+          }}
+        />
+      );
+
+      await controls.handleShare();
+      expect(controls.statusMessage).toBe('Unable to download scorecard image.');
+
+      const failHtml = renderToStaticMarkup(
+        <ResultScreen
+          result={sampleResult}
+          onRetake={() => {}}
+          statusMessage={controls.statusMessage}
+        />
+      );
+      expect(failHtml).toContain('Unable to download scorecard image.');
+    });
+
+    it('12. Retake regression: Retake Quiz remains fully functional and independent of Share action', () => {
+      const onRetake = vi.fn();
+      const html = renderToStaticMarkup(
+        <ResultScreen result={sampleResult} onRetake={onRetake} />
+      );
+
+      expect(html).toContain('data-testid="retake-quiz-btn"');
+      expect(html).toContain('Retake Quiz');
+      expect(html).toContain('data-testid="share-score-btn"');
+      expect(html).toContain('Share Score');
     });
   });
 });

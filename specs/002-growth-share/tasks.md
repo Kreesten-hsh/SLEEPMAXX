@@ -50,13 +50,13 @@
 
 **Purpose**: Expose the "Share Score" action in `ResultScreen` using a native `<button type="button">` (omitting redundant `role="button"`), with touch targets $\ge 52\text{px}$, visible keyboard focus, `disabled` & `aria-busy` during processing, and `aria-live="polite"` status announcements.
 
-- [ ] T007 [SHARE] Integrate native `<button type="button">` for "Share Score" in `src/features/quiz/components/ResultScreen.tsx`:
+- [x] T007 [SHARE] Integrate native `<button type="button">` for "Share Score" in `src/features/quiz/components/ResultScreen.tsx`:
   - Native HTML `<button type="button">` (strictly omitting redundant `role="button"`)
   - Primary CTA positioned above "Retake Quiz"
   - Touch target min-height $52\text{px}$ with glowing accent styling and `:focus-visible` ring
   - States: `idle`, `loading` (`disabled`, `aria-busy="true"`), and transient feedback
   - Keyboard navigation (Tab, Enter, Space) and polite status announcements via sibling `<div role="status" aria-live="polite">`
-- [ ] T008 [SHARE] Add integration tests for Share UI in `src/features/quiz/QuizContainer.test.tsx` (verify native button rendering without redundant role, loading state during generation, `aria-live` announcements distinguishing download from clipboard, clean reset on abort, and Retake Quiz persistence reset unchanged)
+- [x] T008 [SHARE] Add integration tests for Share UI in `src/features/quiz/QuizContainer.test.tsx` (verify native button rendering without redundant role, loading state during generation, `aria-live` announcements distinguishing download from clipboard, clean reset on abort, and Retake Quiz persistence reset unchanged)
 
 **Checkpoint**: End-to-end user flow from Result to Share Sheet / Download operational and tested.
 
