@@ -67,6 +67,7 @@
 ### Implementation for User Story 2
 
 - [ ] T016 [US2] Integrate in-app Back button into `src/features/quiz/components/QuestionScreen.tsx` (top-left back control; on Q1/index 0 calls back handler to return to landing; on Q2–Q5 calls `goToPreviousQuestion`; displays previously selected answer for current question; 100% in-app, zero `window.history` or `popstate` manipulation)
+  *(Audit Note: Basic button layout and `goToPreviousQuestion` wiring exist from MVP scaffolding, but pre-selection of previously answered options and full US2 acceptance verification remain to be implemented in T016).*
 - [ ] T017 [US2] Ensure downstream answer preservation during back/forward transitions in `src/features/quiz/useQuizState.ts` (when user moves back and changes an answer, existing answers for other questions remain intact in state)
 - [ ] T018 [US2] Add unit and integration tests for in-app back navigation and answer modification in `src/features/quiz/QuizContainer.test.tsx` (test navigating from Q3 to Q2 to Q1 to Landing, modifying Q2 answer, re-advancing, and asserting updated score calculation; verify zero dependency on `window.history.pushState`)
 

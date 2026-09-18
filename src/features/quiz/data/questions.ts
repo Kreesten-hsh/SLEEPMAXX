@@ -32,7 +32,7 @@ export const QUESTIONS: readonly [
       {
         id: 'dur_7_to_9',
         label: '7 – 8.9 hours',
-        sublabel: 'Optimal routine range',
+        sublabel: 'Highest score bracket',
         normalizedValue: 8.0,
       },
       {
@@ -92,13 +92,13 @@ export const QUESTIONS: readonly [
       {
         id: 'caffeine_none',
         label: "I don't drink caffeine",
-        sublabel: 'Zero caffeine penalty',
+        sublabel: 'No caffeine selected',
         normalizedValue: null,
       },
       {
         id: 'caffeine_8_plus',
         label: '8+ hours before bed',
-        sublabel: 'Optimal cutoff',
+        sublabel: 'Longest pre-bed buffer',
         normalizedValue: 9.0,
       },
       {
